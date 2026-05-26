@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: seu-hotel
+    name: seu-hotel-app
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
@@ -20,15 +20,24 @@ services:
       - key: DB_CONNECTION
         value: mysql
       - key: DB_HOST
-        sync: false
+        fromService:
+          name: seu-hotel-db
+          type: pserv
+          property: host
       - key: DB_PORT
-        value: 3306
+        fromService:
+          name: seu-hotel-db
+          type: pserv
+          property: port
       - key: DB_DATABASE
-        sync: false
+        value: seuhotel
       - key: DB_USERNAME
-        sync: false
+        value: seuhotel
       - key: DB_PASSWORD
-        sync: false
+        fromService:
+          name: seu-hotel-db
+          type: pserv
+          envVarKey: MYSQL_PASSWORD
 
       - key: SESSION_DRIVER
         value: database
@@ -36,11 +45,26 @@ services:
         value: database
       - key: QUEUE_CONNECTION
         value: database
-
       - key: LOG_CHANNEL
         value: stderr
       - key: LOG_LEVEL
         value: error
 
-      - key: FILESYSTEM_DISK
-        value: local
+  - type: pserv
+    name: seu-hotel-db
+    runtime: docker
+    dockerfilePath: ./docker/mysql.Dockerfile
+    plan: free
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 1
+    envVars:
+      - key: MYSQL_DATABASE
+        value: seuhotel
+      - key: MYSQL_USER
+        value: seuhotel
+      - key: MYSQL_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
