@@ -13,29 +13,25 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Install PHP dependencies
+# Install PHP dependencies (--no-scripts avoids post-autoload-dump calling artisan before source is copied)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --no-scripts
 
 # Install Node dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Copy full source
+# Copy full source (artisan is now available)
 COPY . .
+
+# Run post-install hook now that artisan exists
+RUN php artisan package:discover --ansi
 
 # Create a minimal .env so artisan works during the build
 # (wayfinder:generate calls php artisan, needs APP_KEY + a valid DB driver)
-RUN php -r "
-    file_put_contents('.env',
-        'APP_KEY=base64:' . base64_encode(random_bytes(32)) . PHP_EOL .
-        'APP_ENV=local' . PHP_EOL .
-        'DB_CONNECTION=sqlite' . PHP_EOL .
-        'DB_DATABASE=/app/database/database.sqlite' . PHP_EOL .
-        'SESSION_DRIVER=file' . PHP_EOL .
-        'CACHE_STORE=file' . PHP_EOL
-    );
-" && touch database/database.sqlite
+RUN APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')" \
+    && printf "APP_KEY=%s\nAPP_ENV=local\nDB_CONNECTION=sqlite\nDB_DATABASE=/app/database/database.sqlite\nSESSION_DRIVER=file\nCACHE_STORE=file\n" "$APP_KEY" > .env \
+    && touch database/database.sqlite
 
 # Build frontend assets (wayfinder plugin calls php artisan during this step)
 RUN npm run build
