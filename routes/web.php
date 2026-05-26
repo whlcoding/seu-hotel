@@ -13,8 +13,8 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout')->middleware('auth');
 
 // App
+Route::get('/', fn() => Inertia::render('Dashboard/Index'))->name('dashboard');
 Route::middleware('auth')->group(function () {
-    Route::get('/', fn() => Inertia::render('Dashboard/Index'))->name('dashboard');
 
     Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
     Route::resource('reservas', ReservationController::class);
