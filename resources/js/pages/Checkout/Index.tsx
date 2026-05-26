@@ -419,7 +419,7 @@ function Bill({
             </div>
 
             <div className="bill-total">
-                <span className="k">Total a pagar</span>
+                <span >Total a pagar</span>
                 <span className="v">R$ {fmtBR(total)}</span>
             </div>
 

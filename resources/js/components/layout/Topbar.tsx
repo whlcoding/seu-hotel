@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import {
     Menu, Search, Help, Bell, ChevronDown,
     User, Settings, Logout,
@@ -27,6 +27,10 @@ export default function Topbar({ onMenuClick, breadcrumb, title = 'Dashboard' }:
         window.addEventListener('mousedown', handler);
         return () => window.removeEventListener('mousedown', handler);
     }, [profileOpen]);
+
+    const handleLogout = () => {
+        router.post('/logout');
+    };
 
     return (
         <header className="topbar">
@@ -103,7 +107,7 @@ export default function Topbar({ onMenuClick, breadcrumb, title = 'Dashboard' }:
                                 <Help size={16} /> Ajuda & suporte
                             </button>
                             <div className="dropdown-sep" />
-                            <button className="dropdown-item danger" role="menuitem">
+                            <button className="dropdown-item danger" role="menuitem" onClick={handleLogout}>
                                 <Logout size={16} /> Sair
                             </button>
                         </div>

@@ -1,50 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 import AppLayout from '@/components/layout/AppLayout';
 import { I } from '@/components/ui/Icons';
 import type { ReservationStatus, AvatarColor, BookingChannel, RoomType } from '@/types/hotel';
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const ROOMS: Record<string, { type: RoomType; price: number }> = {
-    '101': { type: 'Single', price: 180 },
-    '102': { type: 'Single', price: 180 },
-    '103': { type: 'Single', price: 180 },
-    '201': { type: 'Duplo',  price: 250 },
-    '202': { type: 'Duplo',  price: 250 },
-    '203': { type: 'Duplo',  price: 250 },
-    '301': { type: 'Duplo',  price: 250 },
-    '305': { type: 'Single', price: 180 },
-    '405': { type: 'Duplo',  price: 250 },
-    '501': { type: 'Suíte',  price: 480 },
-    '502': { type: 'Suíte',  price: 480 },
-    '503': { type: 'Suíte',  price: 480 },
-};
-
-type GuestRow = [string, string, AvatarColor];
-
-const GUEST_POOL: GuestRow[] = [
-    ['João Silva',       'joao.silva@email.com',       ''],
-    ['Maria Santos',     'maria.santos@email.com',     'blue'],
-    ['Pedro Costa',      'pedro.costa@email.com',      'green'],
-    ['Camila Souza',     'camila.souza@gmail.com',     'orange'],
-    ['Eduardo Antunes',  'eduardo@antunes.co',         'purple'],
-    ['Mariana Reis',     'mari.reis@outlook.com',      'blue'],
-    ['Larissa Mendonça', 'lari.mend@hotmail.com',      'green'],
-    ['Rafael Lima',      'rafael.lima@gmail.com',      ''],
-    ['Beatriz Castro',   'biacastro@yahoo.com.br',     'purple'],
-    ['Felipe Almeida',   'felipe.almeida@email.com',   'orange'],
-    ['Juliana Pires',    'ju.pires@gmail.com',         'blue'],
-    ['Thiago Moreira',   'thiago.m@email.com',         ''],
-    ['Letícia Borges',   'leticia.b@outlook.com',      'green'],
-    ['André Cardoso',    'andre.cardoso@gmail.com',    'purple'],
-    ['Patrícia Lopes',   'pat.lopes@gmail.com',        'orange'],
-    ['Bruno Tavares',    'bruno.tav@hotmail.com',      'blue'],
-    ['Sandra Vieira',    'sandra.v@gmail.com',         ''],
-    ['Marcos Oliveira',  'marcos.o@email.com',         'green'],
-    ['Cláudia Ferreira', 'claudia.fer@email.com',      'purple'],
-    ['Renato Barbosa',   'renato.b@gmail.com',         'orange'],
-];
 
 const STATUS_LIST: ReservationStatus[] = ['confirmada', 'pendente', 'cancelada', 'realizada', 'no-show'];
 
@@ -61,7 +19,6 @@ const CHANNELS: BookingChannel[] = ['Recepção', 'Website', 'App', 'Booking.com
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
-function iso(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function fromIso(s: string): Date | null {
     if (!s) return null;
     const [y, m, d] = s.split('-').map(Number);
@@ -70,17 +27,20 @@ function fromIso(s: string): Date | null {
 function fmtBR(n: number) {
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-function fmtShort(d: Date | null) {
+function fmtShort(d: string | null) {
     if (!d) return '';
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    const date = new Date(d + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
-function fmtLong(d: Date | null) {
+function fmtLong(d: string | null) {
     if (!d) return '';
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const date = new Date(d + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
-function weekdayShort(d: Date | null) {
+function weekdayShort(d: string | null) {
     if (!d) return '';
-    return d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+    const date = new Date(d + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
 }
 function initials(name: string) {
     return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -97,8 +57,8 @@ interface ResRow {
     room: string;
     roomType: RoomType;
     pricePerNight: number;
-    checkin: Date;
-    checkout: Date;
+    checkin: string;
+    checkout: string;
     nights: number;
     guests: number;
     status: ReservationStatus;
@@ -107,83 +67,23 @@ interface ResRow {
     total: number;
     tax: number;
     note: string;
-    created: Date;
+    created: string;
 }
 
-// ─── Deterministic mock data ─────────────────────────────────────────────────
-
-function rand(seed: number) {
-    let s = seed;
-    return () => {
-        s = (s * 9301 + 49297) % 233280;
-        return s / 233280;
-    };
+interface PaginationData {
+    current_page: number;
+    total: number;
+    per_page: number;
+    last_page: number;
+    from: number | null;
+    to: number | null;
 }
 
-const RESERVATIONS: ResRow[] = (() => {
-    const r = rand(7);
-    const out: ResRow[] = [];
-    const base = new Date(2026, 4, 1);
-    const roomKeys = Object.keys(ROOMS);
-
-    for (let i = 0; i < 42; i++) {
-        const g = GUEST_POOL[Math.floor(r() * GUEST_POOL.length)];
-        const roomKey = roomKeys[Math.floor(r() * roomKeys.length)];
-        const roomInfo = ROOMS[roomKey];
-        const offset = Math.floor(r() * 35) - 8;
-        const nights = 1 + Math.floor(r() * 5);
-        const ci = new Date(base);
-        ci.setDate(base.getDate() + offset);
-        const co = new Date(ci);
-        co.setDate(ci.getDate() + nights);
-
-        let status: ReservationStatus;
-        const rs = r();
-        if (co < new Date(2026, 4, 15)) {
-            status = rs < 0.85 ? 'realizada' : rs < 0.95 ? 'cancelada' : 'no-show';
-        } else if (ci < new Date(2026, 4, 23)) {
-            status = rs < 0.7 ? 'confirmada' : rs < 0.85 ? 'pendente' : 'cancelada';
-        } else {
-            status = rs < 0.55 ? 'confirmada' : rs < 0.85 ? 'pendente' : 'cancelada';
-        }
-
-        const channel = CHANNELS[Math.floor(r() * CHANNELS.length)];
-        const guests = 1 + Math.floor(r() * 3);
-        const paid = rs < 0.6;
-        const total = nights * roomInfo.price;
-        const tax = Math.round(total * 0.05);
-
-        out.push({
-            id: 480 + i,
-            ref: `RES-${480 + i}`,
-            guest: g[0],
-            email: g[1],
-            avatarColor: g[2],
-            room: roomKey,
-            roomType: roomInfo.type,
-            pricePerNight: roomInfo.price,
-            checkin: ci,
-            checkout: co,
-            nights,
-            guests,
-            status,
-            channel,
-            paid,
-            total,
-            tax,
-            created: new Date(ci.getTime() - (3 + Math.floor(r() * 20)) * 86400000),
-            note:
-                r() < 0.3
-                    ? 'Hóspede solicita berço infantil.'
-                    : r() < 0.5
-                    ? 'Sem preferências.'
-                    : 'Quarto silencioso, longe do elevador.',
-        });
-    }
-
-    out.sort((a, b) => b.id - a.id);
-    return out;
-})();
+interface PageProps {
+    reservations: ResRow[];
+    pagination: PaginationData;
+    status_counts: Record<string, number>;
+}
 
 // ─── StatusFilter ─────────────────────────────────────────────────────────────
 
@@ -511,7 +411,7 @@ function Drawer({ row, onClose, onAction }: DrawerProps) {
                                     <div className="tl-body">
                                         Reserva confirmada pelo hóspede
                                         <div className="tl-time">
-                                            {fmtLong(new Date(row.created.getTime() + 86400000))} · 14:32
+                                            {fmtLong(new Date(new Date(row.created).getTime() + 86400000).toISOString().split('T')[0])} · 14:32
                                         </div>
                                     </div>
                                 </div>
@@ -524,7 +424,7 @@ function Drawer({ row, onClose, onAction }: DrawerProps) {
                                     <div className="tl-body">
                                         Pagamento confirmado · R$ {fmtBR(row.total + row.tax)}
                                         <div className="tl-time">
-                                            {fmtLong(new Date(row.created.getTime() + 2 * 86400000))} · 10:08
+                                            {fmtLong(new Date(new Date(row.created).getTime() + 2 * 86400000).toISOString().split('T')[0])} · 10:08
                                         </div>
                                     </div>
                                 </div>
@@ -668,14 +568,18 @@ type SortKey = 'id' | 'guest' | 'room' | 'checkin' | 'checkout' | 'nights' | 'to
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ReservasIndex() {
-    const [status, setStatus] = useState<StatusFilterId>('all');
-    const [dates, setDates] = useState({ from: '', to: '' });
-    const [search, setSearch] = useState('');
-    const [sortKey, setSortKey] = useState<SortKey>('id');
-    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-    const [page, setPage] = useState(1);
-    const perPage = 10;
+export default function ReservasIndex({ reservations = [], pagination = {} as PaginationData, status_counts = {} }: PageProps) {
+    const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+
+    const [status, setStatus] = useState<StatusFilterId>((urlParams.get('status') as StatusFilterId) || 'all');
+    const [dates, setDates] = useState({
+        from: urlParams.get('from') || '',
+        to: urlParams.get('to') || '',
+    });
+    const [search, setSearch] = useState(urlParams.get('search') || '');
+    const [sortKey, setSortKey] = useState<SortKey>((urlParams.get('sort_key') as SortKey) || 'id');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>((urlParams.get('sort_dir') as 'asc' | 'desc') || 'desc');
+    const [page, setPage] = useState(parseInt(urlParams.get('page') || '1'));
     const [menu, setMenu] = useState<number | null>(null);
     const [drawerRow, setDrawerRow] = useState<ResRow | null>(null);
     const [toast, setToast] = useState<ToastState | null>(null);
@@ -687,63 +591,31 @@ export default function ReservasIndex() {
         setTimeout(() => setToast(null), 2600);
     };
 
-    const baseFiltered = useMemo(() => {
-        return RESERVATIONS.filter((r) => {
-            if (dates.from && r.checkout < (fromIso(dates.from) as Date)) return false;
-            if (dates.to && r.checkin > (fromIso(dates.to) as Date)) return false;
-            if (search) {
-                const q = search.toLowerCase();
-                const hay = `${r.guest} ${r.email} ${r.room} ${r.id} ${r.ref}`.toLowerCase();
-                if (!hay.includes(q)) return false;
-            }
-            return true;
-        });
-    }, [dates, search]);
+    const navigateWithFilters = (newStatus?: StatusFilterId, newDates?: typeof dates, newSearch?: string, newSortKey?: SortKey, newSortDir?: 'asc' | 'desc', newPage?: number) => {
+        const params = new URLSearchParams();
 
-    const counts = useMemo(() => {
-        const c: Record<string, number> = { all: baseFiltered.length };
-        STATUS_LIST.forEach((s) => { c[s] = 0; });
-        baseFiltered.forEach((r) => { c[r.status] = (c[r.status] || 0) + 1; });
-        return c;
-    }, [baseFiltered]);
+        const s = newStatus !== undefined ? newStatus : status;
+        const d = newDates !== undefined ? newDates : dates;
+        const q = newSearch !== undefined ? newSearch : search;
+        const sk = newSortKey !== undefined ? newSortKey : sortKey;
+        const sd = newSortDir !== undefined ? newSortDir : sortDir;
+        const p = newPage !== undefined ? newPage : 1;
 
-    const filtered = useMemo(() => {
-        return baseFiltered.filter((r) => status === 'all' || r.status === status);
-    }, [baseFiltered, status]);
+        if (s !== 'all') params.set('status', s);
+        if (d.from) params.set('from', d.from);
+        if (d.to) params.set('to', d.to);
+        if (q) params.set('search', q);
+        if (sk !== 'id') params.set('sort_key', sk);
+        if (sd !== 'desc') params.set('sort_dir', sd);
+        if (p > 1) params.set('page', String(p));
 
-    const sorted = useMemo(() => {
-        const list = [...filtered];
-        const dir = sortDir === 'asc' ? 1 : -1;
-        list.sort((a, b) => {
-            let av: number | string, bv: number | string;
-            switch (sortKey) {
-                case 'id':       av = a.id;                   bv = b.id;                   break;
-                case 'guest':    av = a.guest;                bv = b.guest;                break;
-                case 'room':     av = a.room;                 bv = b.room;                 break;
-                case 'checkin':  av = a.checkin.getTime();    bv = b.checkin.getTime();    break;
-                case 'checkout': av = a.checkout.getTime();   bv = b.checkout.getTime();   break;
-                case 'nights':   av = a.nights;               bv = b.nights;               break;
-                case 'total':    av = a.total;                bv = b.total;                break;
-                case 'status':   av = a.status;               bv = b.status;               break;
-                default:         av = a.id;                   bv = b.id;
-            }
-            if (av < bv) return -1 * dir;
-            if (av > bv) return 1 * dir;
-            return 0;
-        });
-        return list;
-    }, [filtered, sortKey, sortDir]);
+        const queryString = params.toString();
+        window.location.href = `/reservas${queryString ? '?' + queryString : ''}`;
+    };
 
-    const total = sorted.length;
-    const totalPages = Math.max(1, Math.ceil(total / perPage));
-
-    useEffect(() => {
-        if (page > totalPages) setPage(1);
-    }, [totalPages]);
-
-    const start = total === 0 ? 0 : (page - 1) * perPage + 1;
-    const end = Math.min(total, page * perPage);
-    const pageRows = sorted.slice(start - 1, end);
+    const total = pagination.total || 0;
+    const totalPages = pagination.last_page || 1;
+    const pageRows = reservations;
 
     useEffect(() => {
         if (!menu) return;
@@ -756,15 +628,12 @@ export default function ReservasIndex() {
     }, [menu]);
 
     const onSort = (k: SortKey) => {
-        if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-        else { setSortKey(k); setSortDir('asc'); }
+        const newDir = k === sortKey && sortDir === 'asc' ? 'desc' : 'asc';
+        navigateWithFilters(undefined, undefined, undefined, k, newDir, 1);
     };
 
     const clearFilters = () => {
-        setStatus('all');
-        setDates({ from: '', to: '' });
-        setSearch('');
-        setPage(1);
+        window.location.href = '/reservas';
     };
 
     const filterCount =
@@ -796,6 +665,18 @@ export default function ReservasIndex() {
                 }
                 break;
         }
+    };
+
+    const handleStatusChange = (v: StatusFilterId) => {
+        navigateWithFilters(v, undefined, undefined, undefined, undefined, 1);
+    };
+
+    const handleDateChange = (v: typeof dates) => {
+        navigateWithFilters(undefined, v, undefined, undefined, undefined, 1);
+    };
+
+    const handleSearchChange = (v: string) => {
+        navigateWithFilters(undefined, undefined, v, undefined, undefined, 1);
     };
 
     const onRefresh = () => {
@@ -834,8 +715,8 @@ export default function ReservasIndex() {
                 <div>
                     <h1 className="page-title">Gerenciar Reservas</h1>
                     <div className="page-sub">
-                        {RESERVATIONS.length} reservas registradas no sistema ·{' '}
-                        {counts.pendente || 0} pendente{(counts.pendente || 0) === 1 ? '' : 's'}
+                        {total} reservas registradas no sistema ·{' '}
+                        {status_counts.pendente || 0} pendente{(status_counts.pendente || 0) === 1 ? '' : 's'}
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -848,7 +729,7 @@ export default function ReservasIndex() {
                         </span>
                         Atualizar
                     </button>
-                    <Link href="/reservas/nova" className="btn primary">
+                    <Link href="/reservas/create" className="btn primary">
                         <I.Plus size={15} stroke={2.5} /> Nova Reserva
                     </Link>
                 </div>
@@ -858,17 +739,17 @@ export default function ReservasIndex() {
             <div className="filters">
                 <StatusFilter
                     value={status}
-                    onChange={(v) => { setStatus(v); setPage(1); }}
-                    counts={counts}
+                    onChange={handleStatusChange}
+                    counts={status_counts}
                 />
                 <DateRangeFilter
                     from={dates.from}
                     to={dates.to}
-                    onChange={(v) => { setDates(v); setPage(1); }}
+                    onChange={handleDateChange}
                 />
                 <SearchFilter
                     value={search}
-                    onChange={(v) => { setSearch(v); setPage(1); }}
+                    onChange={handleSearchChange}
                 />
                 <button
                     className="btn ghost filter-clear"
@@ -950,7 +831,19 @@ export default function ReservasIndex() {
                                 </thead>
                                 <tbody>
                                     {pageRows.map((r) => (
-                                        <tr key={r.id} onClick={() => setDrawerRow(r)}>
+                                        <tr
+                                            key={r.id}
+                                            onClick={() => setDrawerRow(r)}
+                                            role="button"
+                                            tabIndex={0}
+                                            style={{ cursor: 'pointer' }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    setDrawerRow(r);
+                                                }
+                                            }}
+                                        >
                                             <td className="cell-id" style={{ paddingLeft: 18 }}>
                                                 #{r.id}
                                             </td>
@@ -1035,7 +928,20 @@ export default function ReservasIndex() {
                         {/* Mobile cards */}
                         <div className="cards-list">
                             {pageRows.map((r) => (
-                                <div key={r.id} className="res-card" onClick={() => setDrawerRow(r)}>
+                                <div
+                                    key={r.id}
+                                    className="res-card"
+                                    onClick={() => setDrawerRow(r)}
+                                    role="button"
+                                    tabIndex={0}
+                                    style={{ cursor: 'pointer' }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setDrawerRow(r);
+                                        }
+                                    }}
+                                >
                                     <div className="top">
                                         <div className="guest-block">
                                             <div className={`avatar ${r.avatarColor}`}>
@@ -1128,12 +1034,12 @@ export default function ReservasIndex() {
                         </div>
 
                         <Pagination
-                            page={page}
+                            page={pagination.current_page || 1}
                             totalPages={totalPages}
-                            onChange={setPage}
+                            onChange={(p) => navigateWithFilters(undefined, undefined, undefined, undefined, undefined, p)}
                             total={total}
-                            start={start}
-                            end={end}
+                            start={pagination.from || 0}
+                            end={pagination.to || 0}
                         />
                     </>
                 )}

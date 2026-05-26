@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -11,11 +12,13 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout')->middleware('auth');
 
-Route::get('/', fn() => Inertia::render('Dashboard/Index'))->name('dashboard');
 // App
 Route::middleware('auth')->group(function () {
-    Route::get('/reservas', fn() => Inertia::render('Reservas/Index'))->name('reservas');
-    Route::get('/reservas/nova', fn() => Inertia::render('Reservas/Create'))->name('reservas.create');
+    Route::get('/', fn() => Inertia::render('Dashboard/Index'))->name('dashboard');
+
+    Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
+    Route::resource('reservas', ReservationController::class);
+
     Route::get('/checkout', fn() => Inertia::render('Checkout/Index'))->name('checkout');
     Route::get('/equipe', fn() => Inertia::render('Equipe/Index'))->name('equipe');
     Route::get('/limpeza', fn() => Inertia::render('Limpeza/Index'))->name('limpeza');

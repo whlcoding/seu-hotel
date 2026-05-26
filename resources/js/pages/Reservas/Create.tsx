@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { router } from '@inertiajs/react';
 import AppLayout from '@/components/layout/AppLayout';
 import { I } from '@/components/ui/Icons';
 import type { AvatarColor } from '@/types/hotel';
@@ -6,7 +7,7 @@ import type { AvatarColor } from '@/types/hotel';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface GuestRecord {
-    id: string;
+    id: number | string;
     name: string;
     email: string;
     phone: string;
@@ -37,6 +38,7 @@ interface RoomTypeRecord {
     total: number;
     nums: string[];
     occupiedNums: string[];
+    roomIdMap: Record<string, number>;
 }
 
 interface StepDef {
@@ -65,37 +67,52 @@ interface Errors {
 
 type GuestMode = 'search' | 'new';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Backend prop types ────────────────────────────────────────────────────────
 
-const GUESTS_DB: GuestRecord[] = [
-    { id: 'g1', name: 'João Silva',       email: 'joao.silva@email.com',    phone: '+55 11 98765-4321', cpf: '342.118.690-55', stays: 3, last: '12/03/2026', tag: 'VIP',  avatarColor: '' },
-    { id: 'g2', name: 'Camila Souza',     email: 'camila.souza@gmail.com',  phone: '+55 21 99812-3344', cpf: '108.554.221-09', stays: 1, last: '02/01/2026', tag: 'Novo', avatarColor: 'blue' },
-    { id: 'g3', name: 'Eduardo Antunes',  email: 'eduardo@antunes.co',      phone: '+55 11 98112-9988', cpf: '775.331.004-12', stays: 7, last: '18/04/2026', tag: 'VIP',  avatarColor: 'green' },
-    { id: 'g4', name: 'Mariana Reis',     email: 'mari.reis@outlook.com',   phone: '+55 11 99977-2211', cpf: '441.880.220-77', stays: 2, last: '29/12/2025', tag: '',     avatarColor: 'purple' },
-    { id: 'g5', name: 'Pedro Henrique',   email: 'pedrohbm@gmail.com',      phone: '+55 31 98800-1122', cpf: '903.221.114-44', stays: 5, last: '01/05/2026', tag: '',     avatarColor: 'blue' },
-    { id: 'g6', name: 'Larissa Mendonça', email: 'lari.mend@hotmail.com',   phone: '+55 41 99655-3322', cpf: '551.224.788-90', stays: 1, last: '10/05/2026', tag: 'Novo', avatarColor: 'green' },
-];
+interface GuestProp {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    cpf: string;
+    avatar_color: string;
+    tag: string;
+    stays: number;
+    last: string;
+}
 
-const ROOM_TYPES: RoomTypeRecord[] = [
-    {
-        id: 'single', name: 'Single', capacity: '1 pessoa', capacityNum: 1,
-        bed: '1 cama de solteiro', price: 180, avail: 4, total: 8,
-        nums: ['101','102','103','104','105','106','107','108'],
-        occupiedNums: ['102','105','107'],
-    },
-    {
-        id: 'duplo', name: 'Duplo', capacity: 'até 2 pessoas', capacityNum: 2,
-        bed: '1 cama de casal · 1 sofá-cama', price: 250, avail: 6, total: 14,
-        nums: ['201','202','203','204','205','301','302','303','304','305','401','402','403','404'],
-        occupiedNums: ['201','203','301','305','401','403','404'],
-    },
-    {
-        id: 'suite', name: 'Suíte', capacity: 'até 4 pessoas', capacityNum: 4,
-        bed: '1 cama queen · varanda', price: 480, avail: 1, total: 4,
-        nums: ['501','502','503','504'],
-        occupiedNums: ['501','503','504'],
-    },
-];
+interface RoomTypeProp {
+    id: string;
+    name: string;
+    capacity: string;
+    capacityNum: number;
+    bed: string;
+    price: number;
+    total: number;
+    nums: string[];
+    roomIdMap: Record<string, number>;
+}
+
+interface BookingResult {
+    ref: string;
+    guestName: string;
+    roomNumber: string;
+    roomTypeName: string;
+    pricePerNight: number;
+    checkin: string;
+    checkout: string;
+    nights: number;
+    total: number;
+    tax: number;
+}
+
+interface PageProps {
+    guests: GuestProp[];
+    roomTypes: RoomTypeProp[];
+    booking?: BookingResult;
+}
+
+// ─── Static data ──────────────────────────────────────────────────────────────
 
 const CHANNELS = ['Recepção (Telefone)', 'Website', 'App', 'Booking.com', 'Expedia', 'Agência de viagens', 'Walk-in'];
 
@@ -170,6 +187,7 @@ function StepIndicator({ steps }: { steps: StepDef[] }) {
 // ─── GuestSection ─────────────────────────────────────────────────────────────
 
 interface GuestSectionProps {
+    guestsDb: GuestRecord[];
     guest: GuestRecord | null;
     setGuest: (g: GuestRecord | null) => void;
     newGuest: NewGuestForm;
@@ -179,7 +197,7 @@ interface GuestSectionProps {
     errors: Errors;
 }
 
-function GuestSection({ guest, setGuest, newGuest, setNewGuest, mode, setMode, errors }: GuestSectionProps) {
+function GuestSection({ guestsDb, guest, setGuest, newGuest, setNewGuest, mode, setMode, errors }: GuestSectionProps) {
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
     const [hl, setHl] = useState(0);
@@ -187,13 +205,13 @@ function GuestSection({ guest, setGuest, newGuest, setNewGuest, mode, setMode, e
 
     const matches = useMemo<GuestRecord[]>(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return GUESTS_DB.slice(0, 5);
-        return GUESTS_DB.filter((g) =>
+        if (!q) return guestsDb.slice(0, 5);
+        return guestsDb.filter((g) =>
             g.name.toLowerCase().includes(q) ||
             g.email.toLowerCase().includes(q) ||
             g.cpf.includes(q)
         ).slice(0, 6);
-    }, [query]);
+    }, [query, guestsDb]);
 
     useEffect(() => {
         const h = (e: MouseEvent) => {
@@ -380,13 +398,14 @@ function GuestSection({ guest, setGuest, newGuest, setNewGuest, mode, setMode, e
 // ─── RoomSection ──────────────────────────────────────────────────────────────
 
 interface RoomSectionProps {
+    roomTypes: RoomTypeRecord[];
     roomType: RoomTypeRecord | null;
     setRoomType: (r: RoomTypeRecord | null) => void;
     roomNumber: string | null;
     setRoomNumber: (n: string | null) => void;
 }
 
-function RoomSection({ roomType, setRoomType, roomNumber, setRoomNumber }: RoomSectionProps) {
+function RoomSection({ roomTypes, roomType, setRoomType, roomNumber, setRoomNumber }: RoomSectionProps) {
     const isComplete = !!roomType && !!roomNumber;
 
     return (
@@ -400,7 +419,7 @@ function RoomSection({ roomType, setRoomType, roomNumber, setRoomNumber }: RoomS
             </div>
 
             <div className="room-grid">
-                {ROOM_TYPES.map((r) => {
+                {roomTypes.map((r) => {
                     const sel = roomType?.id === r.id;
                     const availClass = r.avail === 0 ? 'none' : r.avail <= 2 ? 'low' : 'ok';
                     const photoCls = r.id === 'duplo' ? 'duplo' : r.id === 'suite' ? 'suite' : '';
@@ -484,7 +503,8 @@ interface MiniCalendarProps {
 }
 
 function MiniCalendar({ checkin, checkout, onPick }: MiniCalendarProps) {
-    const today = new Date('2026-05-23T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
 
     const monthName = new Date(view.y, view.m, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -596,6 +616,7 @@ interface DateSectionProps {
 function DateSection({ checkin, setCheckin, checkout, setCheckout, errors }: DateSectionProps) {
     const nights = diffNights(checkin, checkout);
     const isComplete = !!checkin && !!checkout && nights > 0;
+    const todayIso = isoDate(new Date());
 
     const onPickDate = (iso: string) => {
         if (!checkin || (checkin && checkout)) {
@@ -625,7 +646,7 @@ function DateSection({ checkin, setCheckin, checkout, setCheckout, errors }: Dat
                     <div className="date-card">
                         <label htmlFor="checkin">Check-in</label>
                         <input id="checkin" type="date" value={checkin}
-                            min="2026-05-23"
+                            min={todayIso}
                             onChange={(e) => setCheckin(e.target.value)} />
                     </div>
                     <div className="error-msg" style={{ marginTop: 6 }}><I.Warning size={13} /> Informe a data de check-in</div>
@@ -634,7 +655,7 @@ function DateSection({ checkin, setCheckin, checkout, setCheckout, errors }: Dat
                     <div className="date-card">
                         <label htmlFor="checkout">Check-out</label>
                         <input id="checkout" type="date" value={checkout}
-                            min={checkin || '2026-05-24'}
+                            min={checkin || todayIso}
                             onChange={(e) => setCheckout(e.target.value)} />
                     </div>
                     <div className="error-msg" style={{ marginTop: 6 }}><I.Warning size={13} /> Check-out deve ser após o check-in</div>
@@ -714,7 +735,7 @@ function ReviewSection({ data }: { data: ReviewData }) {
                 <ReviewItem label="Hóspede" value={data.guest ? data.guest.name : null} icon="User" />
                 <ReviewItem label="Quarto" value={data.roomNumber ? `${data.roomNumber} · ${data.roomType!.name}` : null} icon="Hotel" />
                 <ReviewItem label="Período" value={data.nights > 0 ? `${fmtDateBR(data.checkin)} → ${fmtDateBR(data.checkout)}` : null} icon="Calendar" />
-                <ReviewItem label="Total" value={data.nights > 0 && data.roomType ? `R$ ${fmtBR(data.nights * data.roomType.price)}` : null} icon="Cash" />
+                <ReviewItem label="Total" value={data.nights > 0 && data.roomType ? `R$ ${fmtBR(data.nights * data.roomType.price * 1.05)}` : null} icon="Cash" />
             </div>
 
             {!ready && (
@@ -847,38 +868,27 @@ function Summary({ data, channel, setChannel, status, setStatus, onCancel, onSub
 
 // ─── SuccessScreen ────────────────────────────────────────────────────────────
 
-interface SuccessScreenProps {
-    bookingRef: string;
-    guest: GuestRecord;
-    roomNumber: string;
-    roomType: RoomTypeRecord;
-    checkin: string;
-    checkout: string;
-    nights: number;
-}
-
-function SuccessScreen({ bookingRef, guest, roomNumber, roomType, checkin, checkout, nights }: SuccessScreenProps) {
-    const total = nights * roomType.price;
-    const tax = Math.round(total * 0.05);
+function SuccessScreen({ booking }: { booking: BookingResult }) {
+    const grandTotal = booking.total + booking.tax;
 
     return (
         <div className="success-screen">
             <div className="check"><I.Check size={32} stroke={3} /></div>
             <h2>Reserva criada!</h2>
             <p>A reserva foi registrada e o hóspede receberá a confirmação por email.</p>
-            <div className="ref">{bookingRef}</div>
+            <div className="ref">{booking.ref}</div>
             <div style={{ textAlign: 'left', background: '#f6f6f3', borderRadius: 10, padding: 14, marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
-                    <span style={{ color: 'var(--ink-3)' }}>Hóspede</span><strong>{guest.name}</strong>
+                    <span style={{ color: 'var(--ink-3)' }}>Hóspede</span><strong>{booking.guestName}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
-                    <span style={{ color: 'var(--ink-3)' }}>Quarto</span><strong>{roomNumber} · {roomType.name}</strong>
+                    <span style={{ color: 'var(--ink-3)' }}>Quarto</span><strong>{booking.roomNumber} · {booking.roomTypeName}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
-                    <span style={{ color: 'var(--ink-3)' }}>Período</span><strong>{fmtDateBR(checkin)} → {fmtDateBR(checkout)}</strong>
+                    <span style={{ color: 'var(--ink-3)' }}>Período</span><strong>{fmtDateBR(booking.checkin)} → {fmtDateBR(booking.checkout)}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderTop: '1px dashed var(--line-strong)', marginTop: 6, paddingTop: 8 }}>
-                    <span style={{ color: 'var(--ink-3)' }}>Total</span><strong className="mono">R$ {fmtBR(total + tax)}</strong>
+                    <span style={{ color: 'var(--ink-3)' }}>Total</span><strong className="mono">R$ {fmtBR(grandTotal)}</strong>
                 </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
@@ -893,7 +903,7 @@ function SuccessScreen({ bookingRef, guest, roomNumber, roomType, checkin, check
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function Create() {
+export default function Create({ guests: guestProps, roomTypes: roomTypeProps, booking }: PageProps) {
     const [guest, setGuest] = useState<GuestRecord | null>(null);
     const [mode, setMode] = useState<GuestMode>('search');
     const [newGuest, setNewGuest] = useState<NewGuestForm>({});
@@ -901,16 +911,78 @@ export default function Create() {
     const [roomType, setRoomType] = useState<RoomTypeRecord | null>(null);
     const [roomNumber, setRoomNumber] = useState<string | null>(null);
 
-    const [checkin, setCheckin] = useState('2026-05-23');
-    const [checkout, setCheckout] = useState('2026-05-25');
+    const todayIso = isoDate(new Date());
+    const [checkin, setCheckin] = useState(todayIso);
+    const [checkout, setCheckout] = useState('');
 
     const [channel, setChannel] = useState('Recepção (Telefone)');
     const [status, setStatus] = useState<'confirmada' | 'pendente'>('confirmada');
 
     const [errors, setErrors] = useState<Errors>({});
     const [submitting, setSubmitting] = useState(false);
-    const [created, setCreated] = useState<{ ref: string } | null>(null);
     const [toast, setToast] = useState<{ msg: string; kind: string } | null>(null);
+
+    // Room availability state
+    const [occupiedRoomIds, setOccupiedRoomIds] = useState<number[]>([]);
+
+    // Map backend guests to internal GuestRecord
+    const guestsDb = useMemo<GuestRecord[]>(() =>
+        guestProps.map((g) => ({
+            id: g.id,
+            name: g.name,
+            email: g.email,
+            phone: g.phone,
+            cpf: g.cpf,
+            stays: g.stays,
+            last: g.last,
+            tag: (g.tag as 'VIP' | 'Novo' | ''),
+            avatarColor: (g.avatar_color as AvatarColor),
+        }))
+    , [guestProps]);
+
+    // Compute room types with availability from backend data + occupied IDs
+    const roomTypesComputed = useMemo<RoomTypeRecord[]>(() =>
+        roomTypeProps.map((rt) => {
+            const occupiedNums = rt.nums.filter((num) => {
+                const id = rt.roomIdMap[num];
+                return id !== undefined && occupiedRoomIds.includes(id);
+            });
+            return {
+                ...rt,
+                avail: rt.nums.length - occupiedNums.length,
+                occupiedNums,
+            };
+        })
+    , [roomTypeProps, occupiedRoomIds]);
+
+    // Fetch occupied rooms when dates change
+    useEffect(() => {
+        const nights = diffNights(checkin, checkout);
+        if (!checkin || !checkout || nights <= 0) {
+            setOccupiedRoomIds([]);
+            return;
+        }
+        fetch(`/reservas/available-rooms?checkin=${checkin}&checkout=${checkout}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+            .then((r) => r.json())
+            .then((data) => setOccupiedRoomIds(data.occupied_room_ids ?? []))
+            .catch(() => setOccupiedRoomIds([]));
+    }, [checkin, checkout]);
+
+    // When room type availability updates, reset selected room if it became occupied
+    useEffect(() => {
+        if (roomType && roomNumber) {
+            const updatedType = roomTypesComputed.find((rt) => rt.id === roomType.id);
+            if (updatedType) {
+                setRoomType(updatedType);
+                if (updatedType.occupiedNums.includes(roomNumber)) {
+                    const firstFree = updatedType.nums.find((n) => !updatedType.occupiedNums.includes(n));
+                    setRoomNumber(firstFree ?? null);
+                }
+            }
+        }
+    }, [roomTypesComputed]);
 
     const nights = diffNights(checkin, checkout);
 
@@ -990,27 +1062,52 @@ export default function Create() {
             return;
         }
 
+        // Find the actual room DB id from the selected room number
+        const selectedRoomType = roomTypesComputed.find((rt) => rt.id === roomType!.id);
+        const roomId = selectedRoomType?.roomIdMap[roomNumber!];
+        if (!roomId) {
+            showToast('Erro: quarto inválido. Tente novamente.', 'error');
+            return;
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const formData: Record<string, any> = {
+            checkin,
+            checkout,
+            status,
+            channel,
+            paid: false,
+            note: '',
+            room_id: roomId,
+        };
+
+        if (guest) {
+            formData.guest_id = guest.id;
+            formData.guest_mode = 'search';
+        } else {
+            formData.guest_mode = 'new';
+            formData.ng_name = newGuest.name;
+            formData.ng_email = newGuest.email;
+            formData.ng_phone = newGuest.phone;
+            formData.ng_cpf = newGuest.cpf;
+            formData.ng_address = newGuest.address;
+            formData.ng_dob = newGuest.dob;
+        }
+
         setSubmitting(true);
-        setTimeout(() => {
-            setSubmitting(false);
-            const ref = `RES-${Math.floor(Math.random() * 9000 + 1000)}`;
-            setCreated({ ref });
-            showToast('Reserva criada com sucesso', 'success');
-        }, 1100);
+        router.post('/reservas', formData, {
+            onError: () => {
+                setSubmitting(false);
+                showToast('Erro ao criar reserva. Revise os dados e tente novamente.', 'error');
+            },
+            onFinish: () => setSubmitting(false),
+        });
     };
 
-    if (created && effectiveGuest && roomType && roomNumber) {
+    if (booking) {
         return (
             <AppLayout title="Reserva Criada" breadcrumb={[{ label: 'Reservas', href: '/reservas' }, { label: 'Nova Reserva' }]}>
-                <SuccessScreen
-                    bookingRef={created.ref}
-                    guest={effectiveGuest}
-                    roomNumber={roomNumber}
-                    roomType={roomType}
-                    checkin={checkin}
-                    checkout={checkout}
-                    nights={nights}
-                />
+                <SuccessScreen booking={booking} />
             </AppLayout>
         );
     }
@@ -1027,6 +1124,7 @@ export default function Create() {
             <div className="layout">
                 <div>
                     <GuestSection
+                        guestsDb={guestsDb}
                         guest={guest}
                         setGuest={setGuest}
                         newGuest={newGuest}
@@ -1036,6 +1134,7 @@ export default function Create() {
                         errors={errors}
                     />
                     <RoomSection
+                        roomTypes={roomTypesComputed}
                         roomType={roomType}
                         setRoomType={setRoomType}
                         roomNumber={roomNumber}
