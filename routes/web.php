@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
     Route::post('/checkout/finalize', [CheckoutController::class, 'finalize'])->name('checkout.finalize');
     Route::get('/chatbot', fn() => Inertia::render('Chatbot/Index'))->name('chatbot');
+    Route::post('/chatbot/ask', [ChatbotController::class, 'ask'])->name('chatbot.ask');
     Route::get('/equipe', fn() => Inertia::render('Equipe/Index'))->name('equipe');
     Route::get('/limpeza', fn() => Inertia::render('Limpeza/Index'))->name('limpeza');
     Route::get('/relatorios', fn() => Inertia::render('Relatorios/Index'))->name('relatorios');
