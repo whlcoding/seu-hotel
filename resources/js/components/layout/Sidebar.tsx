@@ -12,7 +12,8 @@ import Avatar from '@/components/ui/Avatar';
 const NAV_OPERACAO = [
     { id: 'dashboard',  label: 'Dashboard',           icon: Dashboard,  route: '/' },
     { id: 'reservas',   label: 'Reservas',            icon: Calendar,   route: '/reservas',  badge: 7 },
-    { id: 'checkin',    label: 'Check-in / Check-out', icon: ArrowsLR,   route: '/checkout' },
+    { id: 'checkout',    label: 'Check-out', icon: ArrowsLR,   route: '/checkout' },
+    // { id: 'checkin',    label: 'Check-in', icon: ArrowsLR,   route: '/checkin' },
     { id: 'equipe',     label: 'Equipe',               icon: Users,      route: '/equipe' },
     { id: 'limpeza',    label: 'Limpeza',              icon: Star,       route: '/limpeza' },
 ];

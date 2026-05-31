@@ -127,6 +127,7 @@ export interface ActiveStay {
     avatarColor: AvatarColor;
     tag: 'VIP' | 'Novo' | '';
     paidUpfront: boolean;
+    items?: BillingItem[];
 }
 
 // ─── Team ────────────────────────────────────────────────────────────────────
@@ -232,7 +233,7 @@ export interface ReservasProps {
 }
 
 export interface CheckoutProps {
-    activeStays?: ActiveStay[];
+    activeStays: ActiveStay[];
 }
 
 export interface EquipeProps {

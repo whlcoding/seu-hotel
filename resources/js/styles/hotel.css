@@ -1653,7 +1653,7 @@ table.schedule th.weekend { color: var(--blue-ink); }
 @media (max-width: 480px) { .guest-search-row { grid-template-columns: 1fr; } }
 
 .autocomplete-list {
-    position: absolute;
+    /*position: absolute;*/
     top: calc(100% + 4px);
     left: 0; right: 0;
     background: var(--surface);

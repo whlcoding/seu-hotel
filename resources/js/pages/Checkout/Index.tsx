@@ -1,52 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { router } from '@inertiajs/react';
 import AppLayout from '@/components/layout/AppLayout';
 import { I } from '@/components/ui/Icons';
-import type { ActiveStay, BillingItem, AvatarColor, Ratings } from '@/types/hotel';
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const ACTIVE_STAYS: ActiveStay[] = [
-    {
-        id: 521, ref: 'RES-521', guest: 'João Silva', email: 'joao.silva@email.com',
-        phone: '+55 11 98765-4321', cpf: '342.118.690-55',
-        room: '101', roomType: 'Duplo',
-        pricePerNight: 250, nights: 2,
-        checkin: { date: '23/05/2026', time: '14:30' },
-        checkout: { date: '25/05/2026', time: '10:45' },
-        avatarColor: '' as AvatarColor, tag: 'VIP',
-        paidUpfront: true,
-    },
-    {
-        id: 524, ref: 'RES-524', guest: 'Camila Souza', email: 'camila.souza@gmail.com',
-        phone: '+55 21 99812-3344', cpf: '108.554.221-09',
-        room: '305', roomType: 'Single',
-        pricePerNight: 180, nights: 2,
-        checkin: { date: '24/05/2026', time: '15:12' },
-        checkout: { date: '26/05/2026', time: '11:00' },
-        avatarColor: 'blue' as AvatarColor, tag: 'Novo',
-        paidUpfront: false,
-    },
-    {
-        id: 519, ref: 'RES-519', guest: 'Pedro Costa', email: 'pedro.costa@email.com',
-        phone: '+55 31 98800-1122', cpf: '903.221.114-44',
-        room: '502', roomType: 'Suíte',
-        pricePerNight: 480, nights: 3,
-        checkin: { date: '22/05/2026', time: '13:50' },
-        checkout: { date: '25/05/2026', time: '12:00' },
-        avatarColor: 'purple' as AvatarColor, tag: '',
-        paidUpfront: true,
-    },
-    {
-        id: 525, ref: 'RES-525', guest: 'Eduardo Antunes', email: 'eduardo@antunes.co',
-        phone: '+55 11 98112-9988', cpf: '775.331.004-12',
-        room: '203', roomType: 'Duplo',
-        pricePerNight: 250, nights: 4,
-        checkin: { date: '21/05/2026', time: '16:20' },
-        checkout: { date: '25/05/2026', time: '10:00' },
-        avatarColor: 'green' as AvatarColor, tag: 'VIP',
-        paidUpfront: false,
-    },
-];
+import type { ActiveStay, BillingItem, AvatarColor, Ratings, CheckoutProps } from '@/types/hotel';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,6 +14,9 @@ function fmtBR(n: number): string {
 }
 
 function buildItems(stay: ActiveStay): BillingItem[] {
+    if (stay.items && stay.items.length > 0) {
+        return stay.items;
+    }
     return [
         { id: 'lodging', name: 'Hospedagem',          unit: stay.pricePerNight, qty: stay.nights, unitLabel: 'noite',    icon: 'Hotel',    locked: true,  checked: true },
         { id: 'park',    name: 'Estacionamento',       unit: 20,                qty: stay.nights, unitLabel: 'diária',   icon: 'Tools',    locked: false, checked: true },
@@ -81,7 +40,7 @@ interface PaymentState {
 
 // ─── GuestSearch ──────────────────────────────────────────────────────────────
 
-function GuestSearch({ onSelect }: { onSelect: (s: ActiveStay) => void }) {
+function GuestSearch({ activeStays, onSelect }: { activeStays: ActiveStay[]; onSelect: (s: ActiveStay) => void }) {
     const [q, setQ] = useState('');
     const [open, setOpen] = useState(false);
     const [hl, setHl] = useState(0);
@@ -89,15 +48,15 @@ function GuestSearch({ onSelect }: { onSelect: (s: ActiveStay) => void }) {
 
     const matches = useMemo<ActiveStay[]>(() => {
         const s = q.trim().toLowerCase();
-        if (!s) return ACTIVE_STAYS;
-        return ACTIVE_STAYS.filter((g) =>
+        if (!s) return activeStays;
+        return activeStays.filter((g) =>
             g.guest.toLowerCase().includes(s) ||
             g.email.toLowerCase().includes(s) ||
             g.room.includes(s) ||
             String(g.id).includes(s) ||
             g.ref.toLowerCase().includes(s)
         );
-    }, [q]);
+    }, [q, activeStays]);
 
     useEffect(() => {
         const h = (e: MouseEvent) => {
@@ -110,7 +69,7 @@ function GuestSearch({ onSelect }: { onSelect: (s: ActiveStay) => void }) {
     return (
         <div className="autocomplete" ref={wrapRef}>
             <label className="label" htmlFor="guest-search">
-                Buscar hóspede ativo <span className="opt">{ACTIVE_STAYS.length} estadias em curso</span>
+                Buscar hóspede ativo <span className="opt">{activeStays.length} estadias em curso</span>
             </label>
             <div className="input-wrap">
                 <span className="ico-left"><I.Search size={16} /></span>
@@ -147,7 +106,7 @@ function GuestSearch({ onSelect }: { onSelect: (s: ActiveStay) => void }) {
                                     {g.tag === 'VIP' && <span className="pill orange" style={{ marginLeft: 8 }}>VIP</span>}
                                 </div>
                                 <div className="ac-meta">
-                                    <span className="mono">#{g.id}</span> · Quarto {g.room} ({g.roomType}) · check-out hoje {g.checkout.time}
+                                    <span className="mono">#{g.id}</span> · Quarto {g.room} ({g.roomType}) · check-out {g.checkout.date}{g.checkout.time ? ` ${g.checkout.time}` : ''}
                                 </div>
                             </div>
                             <span className="pill green" style={{ marginLeft: 'auto' }}>Hospedado</span>
@@ -186,11 +145,11 @@ function StayCard({ stay }: { stay: ActiveStay }) {
                 </div>
                 <div className="kv-item">
                     <span className="kv-k">Check-in</span>
-                    <span className="kv-v">{stay.checkin.date}<small>{stay.checkin.time}</small></span>
+                    <span className="kv-v">{stay.checkin.date}{stay.checkin.time && <small>{stay.checkin.time}</small>}</span>
                 </div>
                 <div className="kv-item">
                     <span className="kv-k">Check-out</span>
-                    <span className="kv-v">{stay.checkout.date}<small>{stay.checkout.time}</small></span>
+                    <span className="kv-v">{stay.checkout.date}{stay.checkout.time && <small>{stay.checkout.time}</small>}</span>
                 </div>
                 <div className="kv-item">
                     <span className="kv-k">Noites</span>
@@ -629,7 +588,9 @@ function PreviewModal({ stay, items, subtotal, tax, total, onClose }: PreviewMod
                     <div>Hóspede: <strong>{stay.guest}</strong></div>
                     <div>CPF: {stay.cpf}</div>
                     <div>Quarto: {stay.room} ({stay.roomType})</div>
-                    <div>Período: {stay.checkin.date} {stay.checkin.time} → {stay.checkout.date} {stay.checkout.time}</div>
+                    <div>
+                        Período: {stay.checkin.date}{stay.checkin.time ? ` ${stay.checkin.time}` : ''} → {stay.checkout.date}{stay.checkout.time ? ` ${stay.checkout.time}` : ''}
+                    </div>
                     <div style={{ borderTop: '1px dashed var(--line-strong)', marginTop: 12, paddingTop: 12 }}>
                         {items.filter((it) => it.checked && it.qty > 0).map((it) => (
                             <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -654,14 +615,26 @@ function PreviewModal({ stay, items, subtotal, tax, total, onClose }: PreviewMod
     );
 }
 
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function NoActiveStays() {
+    return (
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--ink-3)' }}>
+            <I.Hotel size={40} />
+            <div style={{ marginTop: 12, fontSize: 15, fontWeight: 600, color: 'var(--ink-2)' }}>Nenhuma estadia ativa</div>
+            <div style={{ marginTop: 4, fontSize: 13 }}>Não há hóspedes com check-out previsto para hoje.</div>
+        </div>
+    );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function CheckoutIndex() {
-    const [stay, setStay] = useState<ActiveStay>(ACTIVE_STAYS[0]);
-    const [items, setItems] = useState<BillingItem[]>(() => buildItems(ACTIVE_STAYS[0]));
-    const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(ACTIVE_STAYS[0].paidUpfront ? 'paid' : 'now');
+export default function CheckoutIndex({ activeStays }: CheckoutProps) {
+    const [stay, setStay] = useState<ActiveStay | null>(activeStays[0] ?? null);
+    const [items, setItems] = useState<BillingItem[]>(() => activeStays[0] ? buildItems(activeStays[0]) : []);
+    const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(activeStays[0]?.paidUpfront ? 'paid' : 'now');
     const [payment, setPayment] = useState<PaymentState>({ method: 'card', amount: '' });
-    const [ratings, setRatings] = useState<Ratings>({ limpeza: 4, conforto: 5, atendimento: 4, wifi: 3 });
+    const [ratings, setRatings] = useState<Ratings>({ limpeza: 0, conforto: 0, atendimento: 0, wifi: 0 });
     const [comment, setComment] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState<{ total: number; ratings: Ratings } | null>(null);
@@ -681,6 +654,7 @@ export default function CheckoutIndex() {
     const charClass = charCount > 500 ? 'over' : charCount > 450 ? 'warn' : '';
 
     const canFinalize = useMemo<boolean>(() => {
+        if (!stay) return false;
         if (paymentStatus === 'now') {
             if (payment.method === 'cash') return amountPaid >= total;
             return true;
@@ -703,12 +677,25 @@ export default function CheckoutIndex() {
     };
 
     const onFinalize = () => {
-        if (!canFinalize) return;
+        if (!canFinalize || !stay) return;
         setSubmitting(true);
-        setTimeout(() => {
-            setSubmitting(false);
-            setSuccess({ total, ratings: { ...ratings } });
-        }, 1100);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router.post('/checkout/finalize', {
+            reservation_id: stay.id,
+            payment_status: paymentStatus,
+            payment_method: paymentStatus === 'now' ? payment.method : null,
+            items: items.filter((it) => it.qty > 0),
+            ratings: { ...ratings, comment },
+        } as any, {
+            onSuccess: () => {
+                setSubmitting(false);
+                setSuccess({ total, ratings: { ...ratings } });
+            },
+            onError: () => {
+                setSubmitting(false);
+                showToast('Erro ao finalizar check-out. Tente novamente.', 'error');
+            },
+        });
     };
 
     const onCancel = () => {
@@ -719,8 +706,13 @@ export default function CheckoutIndex() {
 
     const onNewCheckout = () => {
         setSuccess(null);
-        const remaining = ACTIVE_STAYS.filter((s) => s.id !== stay.id);
-        if (remaining.length > 0) onSelectStay(remaining[0]);
+        const remaining = activeStays.filter((s) => s.id !== stay?.id);
+        if (remaining.length > 0) {
+            onSelectStay(remaining[0]);
+        } else {
+            setStay(null);
+            setItems([]);
+        }
         showToast('Pronto para o próximo hóspede', 'success');
     };
 
@@ -733,7 +725,7 @@ export default function CheckoutIndex() {
                 <div>
                     <h1 className="page-title">Check-out</h1>
                     <div className="page-sub">
-                        Finalize a estadia, gere a conta e colete avaliação · <strong>{ACTIVE_STAYS.length} hóspedes</strong> hospedados
+                        Finalize a estadia, gere a conta e colete avaliação · <strong>{activeStays.length} hóspedes</strong> hospedados
                     </div>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'right' }}>
@@ -754,92 +746,100 @@ export default function CheckoutIndex() {
                                 <div className="section-sub">Selecione o hóspede que está fazendo check-out</div>
                             </div>
                         </div>
-                        <GuestSearch onSelect={onSelectStay} />
+                        <GuestSearch activeStays={activeStays} onSelect={onSelectStay} />
                     </section>
 
-                    <section className="section done">
-                        <div className="section-head">
-                            <div className="section-num">2</div>
-                            <div style={{ flex: 1 }}>
-                                <h2 className="section-title">Dados da hospedagem</h2>
-                                <div className="section-sub">Confira os dados antes de fechar a conta</div>
+                    {stay ? (
+                        <>
+                            <section className="section done">
+                                <div className="section-head">
+                                    <div className="section-num">2</div>
+                                    <div style={{ flex: 1 }}>
+                                        <h2 className="section-title">Dados da hospedagem</h2>
+                                        <div className="section-sub">Confira os dados antes de fechar a conta</div>
+                                    </div>
+                                </div>
+                                <StayCard stay={stay} />
+                            </section>
+
+                            <section className="section">
+                                <div className="section-head">
+                                    <div className="section-num">3</div>
+                                    <div style={{ flex: 1 }}>
+                                        <h2 className="section-title">Serviços & itens consumidos</h2>
+                                        <div className="section-sub">Marque os itens que devem entrar na conta</div>
+                                    </div>
+                                </div>
+                                <ItemsList items={items} setItems={setItems} />
+                            </section>
+
+                            <section className="section">
+                                <div className="section-head">
+                                    <div className="section-num">4</div>
+                                    <div style={{ flex: 1 }}>
+                                        <h2 className="section-title">Avaliação da hospedagem</h2>
+                                        <div className="section-sub">Opcional · ajuda a melhorar o serviço</div>
+                                    </div>
+                                </div>
+
+                                <div className="rating-list">
+                                    <StarsInput label="Limpeza"     icon="Sparkles" value={ratings.limpeza}     onChange={(v) => setRatings({ ...ratings, limpeza: v })} />
+                                    <StarsInput label="Conforto"    icon="Hotel"    value={ratings.conforto}    onChange={(v) => setRatings({ ...ratings, conforto: v })} />
+                                    <StarsInput label="Atendimento" icon="Users"    value={ratings.atendimento} onChange={(v) => setRatings({ ...ratings, atendimento: v })} />
+                                    <StarsInput label="Wi-Fi"       icon="Bell"     value={ratings.wifi}        onChange={(v) => setRatings({ ...ratings, wifi: v })} />
+                                </div>
+
+                                <div style={{ marginTop: 14 }}>
+                                    <label className="label" htmlFor="comment">
+                                        Comentário <span className="opt">opcional</span>
+                                    </label>
+                                    <textarea
+                                        id="comment"
+                                        className="textarea"
+                                        placeholder="Conte-nos sua experiência…"
+                                        maxLength={500}
+                                        value={comment}
+                                        onChange={(e) => setComment(e.target.value)}
+                                    />
+                                    <div className={`char-counter ${charClass}`}>{charCount}/500</div>
+                                </div>
+                            </section>
+
+                            <div className="action-row">
+                                <button className="btn" onClick={() => setPreview(true)}>
+                                    <I.Search size={14} /> Pré-visualizar recibo
+                                </button>
                             </div>
-                        </div>
-                        <StayCard stay={stay} />
-                    </section>
-
-                    <section className="section">
-                        <div className="section-head">
-                            <div className="section-num">3</div>
-                            <div style={{ flex: 1 }}>
-                                <h2 className="section-title">Serviços & itens consumidos</h2>
-                                <div className="section-sub">Marque os itens que devem entrar na conta</div>
-                            </div>
-                        </div>
-                        <ItemsList items={items} setItems={setItems} />
-                    </section>
-
-                    <section className="section">
-                        <div className="section-head">
-                            <div className="section-num">4</div>
-                            <div style={{ flex: 1 }}>
-                                <h2 className="section-title">Avaliação da hospedagem</h2>
-                                <div className="section-sub">Opcional · ajuda a melhorar o serviço</div>
-                            </div>
-                        </div>
-
-                        <div className="rating-list">
-                            <StarsInput label="Limpeza"     icon="Sparkles" value={ratings.limpeza}     onChange={(v) => setRatings({ ...ratings, limpeza: v })} />
-                            <StarsInput label="Conforto"    icon="Hotel"    value={ratings.conforto}    onChange={(v) => setRatings({ ...ratings, conforto: v })} />
-                            <StarsInput label="Atendimento" icon="Users"    value={ratings.atendimento} onChange={(v) => setRatings({ ...ratings, atendimento: v })} />
-                            <StarsInput label="Wi-Fi"       icon="Bell"     value={ratings.wifi}        onChange={(v) => setRatings({ ...ratings, wifi: v })} />
-                        </div>
-
-                        <div style={{ marginTop: 14 }}>
-                            <label className="label" htmlFor="comment">
-                                Comentário <span className="opt">opcional</span>
-                            </label>
-                            <textarea
-                                id="comment"
-                                className="textarea"
-                                placeholder="Conte-nos sua experiência…"
-                                maxLength={500}
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                            />
-                            <div className={`char-counter ${charClass}`}>{charCount}/500</div>
-                        </div>
-                    </section>
-
-                    <div className="action-row">
-                        <button className="btn" onClick={() => setPreview(true)}>
-                            <I.Search size={14} /> Pré-visualizar recibo
-                        </button>
-                    </div>
+                        </>
+                    ) : (
+                        <NoActiveStays />
+                    )}
                 </div>
 
-                <aside className="bill-col">
-                    <Bill
-                        stay={stay}
-                        items={items}
-                        subtotal={subtotal}
-                        tax={tax}
-                        total={total}
-                        paymentStatus={paymentStatus}
-                        setPaymentStatus={setPaymentStatus}
-                        payment={payment}
-                        setPayment={setPayment}
-                        change={change}
-                        canFinalize={canFinalize}
-                        submitting={submitting}
-                        onPreview={() => setPreview(true)}
-                        onCancel={onCancel}
-                        onFinalize={onFinalize}
-                    />
-                </aside>
+                {stay && (
+                    <aside className="bill-col">
+                        <Bill
+                            stay={stay}
+                            items={items}
+                            subtotal={subtotal}
+                            tax={tax}
+                            total={total}
+                            paymentStatus={paymentStatus}
+                            setPaymentStatus={setPaymentStatus}
+                            payment={payment}
+                            setPayment={setPayment}
+                            change={change}
+                            canFinalize={canFinalize}
+                            submitting={submitting}
+                            onPreview={() => setPreview(true)}
+                            onCancel={onCancel}
+                            onFinalize={onFinalize}
+                        />
+                    </aside>
+                )}
             </div>
 
-            {preview && (
+            {preview && stay && (
                 <PreviewModal
                     stay={stay}
                     items={items}
@@ -850,7 +850,7 @@ export default function CheckoutIndex() {
                 />
             )}
 
-            {success && (
+            {success && stay && (
                 <SuccessModal
                     stay={stay}
                     total={success.total}

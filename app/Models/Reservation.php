@@ -17,26 +17,31 @@ class Reservation extends Model
         'room_id',
         'checkin',
         'checkout',
+        'checked_in_at',
         'nights',
         'guests_count',
         'status',
         'channel',
         'paid',
+        'payment_method',
         'total',
         'tax',
         'note',
+        'rating',
     ];
 
     protected function casts(): array
     {
         return [
-            'checkin' => 'date',
-            'checkout' => 'date',
-            'paid' => 'boolean',
-            'nights' => 'integer',
-            'guests_count' => 'integer',
-            'total' => 'decimal:2',
-            'tax' => 'decimal:2',
+            'checkin'       => 'date',
+            'checkout'      => 'date',
+            'checked_in_at' => 'datetime',
+            'paid'          => 'boolean',
+            'nights'        => 'integer',
+            'guests_count'  => 'integer',
+            'total'         => 'decimal:2',
+            'tax'           => 'decimal:2',
+            'rating'        => 'array',
         ];
     }
 

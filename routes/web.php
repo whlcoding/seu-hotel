@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -19,7 +20,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
     Route::resource('reservas', ReservationController::class);
 
-    Route::get('/checkout', fn() => Inertia::render('Checkout/Index'))->name('checkout');
+    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
+    Route::post('/checkout/finalize', [CheckoutController::class, 'finalize'])->name('checkout.finalize');
     Route::get('/equipe', fn() => Inertia::render('Equipe/Index'))->name('equipe');
     Route::get('/limpeza', fn() => Inertia::render('Limpeza/Index'))->name('limpeza');
     Route::get('/relatorios', fn() => Inertia::render('Relatorios/Index'))->name('relatorios');
