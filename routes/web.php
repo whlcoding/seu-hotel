@@ -20,8 +20,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
     Route::resource('reservas', ReservationController::class);
 
+    Route::get('/chatbot', fn() => Inertia::render('Chatbot/Index'))->name('chatbot');
+
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
     Route::post('/checkout/finalize', [CheckoutController::class, 'finalize'])->name('checkout.finalize');
+    Route::get('/chatbot', fn() => Inertia::render('Chatbot/Index'))->name('chatbot');
     Route::get('/equipe', fn() => Inertia::render('Equipe/Index'))->name('equipe');
     Route::get('/limpeza', fn() => Inertia::render('Limpeza/Index'))->name('limpeza');
     Route::get('/relatorios', fn() => Inertia::render('Relatorios/Index'))->name('relatorios');

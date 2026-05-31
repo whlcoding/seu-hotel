@@ -14,6 +14,7 @@ const NAV_OPERACAO = [
     { id: 'reservas',   label: 'Reservas',            icon: Calendar,   route: '/reservas',  badge: 7 },
     { id: 'checkout',    label: 'Check-out', icon: ArrowsLR,   route: '/checkout' },
     // { id: 'checkin',    label: 'Check-in', icon: ArrowsLR,   route: '/checkin' },
+    { id: 'chatbot',    label: 'ChatBot', icon: ArrowsLR,   route: '/chatbot' },
     { id: 'equipe',     label: 'Equipe',               icon: Users,      route: '/equipe' },
     { id: 'limpeza',    label: 'Limpeza',              icon: Star,       route: '/limpeza' },
 ];
