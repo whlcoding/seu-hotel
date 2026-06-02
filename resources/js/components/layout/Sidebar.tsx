@@ -8,13 +8,13 @@ import {
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
 const NAV_OPERACAO = [
-    { id: 'dashboard',  label: 'Dashboard',           icon: Dashboard,  route: '/' },
-    { id: 'reservas',   label: 'Reservas',            icon: Calendar,   route: '/reservas',  badge: 7 },
-    { id: 'checkout',    label: 'Check-out',            icon: ArrowUpTray, route: '/checkout' },
-    { id: 'checkin',    label: 'Check-in',             icon: Hotel,       route: '/checkin' },
-    { id: 'chatbot',    label: 'ChatBot',              icon: Sparkles,    route: '/chatbot' },
-    { id: 'equipe',     label: 'Equipe',               icon: Users,      route: '/equipe' },
-    { id: 'limpeza',    label: 'Limpeza',              icon: Star,       route: '/limpeza' },
+    { id: 'dashboard', label: 'Dashboard',  icon: Dashboard,   route: '/' },
+    { id: 'reservas',  label: 'Reservas',   icon: Calendar,    route: '/reservas' },
+    { id: 'checkout',  label: 'Check-out',  icon: ArrowUpTray, route: '/checkout' },
+    { id: 'checkin',   label: 'Check-in',   icon: Hotel,       route: '/checkin' },
+    { id: 'chatbot',   label: 'ChatBot',    icon: Sparkles,    route: '/chatbot' },
+    { id: 'equipe',    label: 'Equipe',     icon: Users,       route: '/equipe' },
+    { id: 'limpeza',   label: 'Limpeza',    icon: Star,        route: '/limpeza' },
 ];
 
 const NAV_ANALISE = [
@@ -29,7 +29,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggle, onItemClick }: SidebarProps) {
-    const { url } = usePage();
+    const { url, props } = usePage();
+    const pendingReservations = (props as { pending_reservations?: number }).pending_reservations ?? 0;
 
     const isActive = (route: string) => route === '/' ? url === '/' : url.startsWith(route);
 
@@ -54,7 +55,7 @@ export default function Sidebar({ collapsed, onToggle, onItemClick }: SidebarPro
             {/* Navigation */}
             <nav className="nav" aria-label="Navegação principal">
                 <div className="section-label">Operação</div>
-                {NAV_OPERACAO.map(({ id, label, icon: Icon, route, badge }) => (
+                {NAV_OPERACAO.map(({ id, label, icon: Icon, route }) => (
                     <Link
                         key={id}
                         href={route}
@@ -63,7 +64,9 @@ export default function Sidebar({ collapsed, onToggle, onItemClick }: SidebarPro
                     >
                         <span className="nav-icon"><Icon size={18} /></span>
                         <span className="nav-label">{label}</span>
-                        {badge && <span className="nav-badge">{badge}</span>}
+                        {id === 'reservas' && pendingReservations > 0 && (
+                            <span className="nav-badge">{pendingReservations}</span>
+                        )}
                     </Link>
                 ))}
 

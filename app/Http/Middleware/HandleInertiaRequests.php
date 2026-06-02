@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Reservation;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'pending_reservations' => fn () => Reservation::all()->count(),
         ];
     }
 }
