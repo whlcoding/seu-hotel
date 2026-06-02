@@ -7,8 +7,9 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-echo "Resetting database and seeding..."
-php artisan migrate:fresh --seed --force
+echo "Running migrations and seeding..."
+php artisan migrate --force
+php artisan db:seed --force
 
 PORT="${PORT:-8080}"
 echo "Starting server on 0.0.0.0:${PORT}..."
