@@ -238,6 +238,11 @@ export interface CheckoutProps {
     activeStays: ActiveStay[];
 }
 
+export interface CheckinProps {
+    arrivals: Reservation[];
+    generatedAt?: string;
+}
+
 export interface EquipeProps {
     team?: TeamMember[];
 }

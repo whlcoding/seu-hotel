@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CheckinController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\CheckoutController;
@@ -20,6 +21,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
     Route::resource('reservas', ReservationController::class);
+
+    Route::get('/checkin', [CheckinController::class, 'index'])->name('checkin');
+    Route::post('/checkin/confirm', [CheckinController::class, 'store'])->name('checkin.confirm');
 
     Route::get('/chatbot', fn() => Inertia::render('Chatbot/Index'))->name('chatbot');
 

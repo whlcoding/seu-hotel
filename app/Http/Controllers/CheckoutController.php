@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reservation;
+use App\Models\StayItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ class CheckoutController extends Controller
 
         $activeStays = Reservation::with(['guest', 'room', 'stayItems'])
             ->where('status', 'confirmada')
+            ->whereNotNull('checked_in_at')
             ->whereDate('checkin', '<=', $today)
             ->whereDate('checkout', '>=', $today)
             ->get()
@@ -61,15 +63,18 @@ class CheckoutController extends Controller
 
             $reservation->stayItems()->delete();
             foreach ($activeItems as $item) {
-                $reservation->stayItems()->create([
-                    'name'       => $item['name'],
+                $stayItem = new StayItem();
+                $stayItem->forceFill([
+                    'name' => $item['name'],
                     'unit_price' => $item['unit'],
-                    'qty'        => $item['qty'],
+                    'qty' => $item['qty'],
                     'unit_label' => $item['unitLabel'],
-                    'icon'       => $item['icon'],
-                    'locked'     => $item['locked'] ?? false,
-                    'custom'     => $item['custom'] ?? false,
+                    'icon' => $item['icon'],
+                    'locked' => $item['locked'] ?? false,
+                    'custom' => $item['custom'] ?? false,
                 ]);
+
+                $reservation->stayItems()->save($stayItem);
             }
 
             $reservation->update([
