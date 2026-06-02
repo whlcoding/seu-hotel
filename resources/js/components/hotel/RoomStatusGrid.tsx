@@ -1,8 +1,6 @@
-import type { RoomStatus } from '@/types/hotel';
+import type { RoomStatus, RoomSummary } from '@/types/hotel';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type RoomCell = { n: string; st: RoomStatus };
+// ─── Config ───────────────────────────────────────────────────────────────────
 
 const COLORS: Record<RoomStatus, { bg: string; dot: string; label: string }> = {
     occupied:    { bg: 'var(--blue-soft)',   dot: '#378ADD', label: 'Ocupado' },
@@ -12,54 +10,49 @@ const COLORS: Record<RoomStatus, { bg: string; dot: string; label: string }> = {
     maintenance: { bg: 'var(--red-soft)',    dot: '#E24B4A', label: 'Manutenção' },
 };
 
-// ─── Deterministic random for consistent demo ─────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function roomRng() {
-    let s = 7;
-    return () => {
-        s = (s * 9301 + 49297) % 233280;
-        return s / 233280;
-    };
+interface FloorRow {
+    floor: number;
+    items: RoomSummary[];
 }
 
-function buildRooms(): RoomCell[][] {
-    const r = roomRng();
-    const floors = [4, 3, 2, 1, 0];
-    return floors.map((f) => {
-        return Array.from({ length: 10 }, (_, i) => {
-            const rv = r();
-            let st: RoomStatus;
-            if (rv < 0.55)       st = 'occupied';
-            else if (rv < 0.75)  st = 'available';
-            else if (rv < 0.85)  st = 'cleaning';
-            else if (rv < 0.92)  st = 'reserved';
-            else                 st = 'maintenance';
-            return { n: `${f + 1}${String(i + 1).padStart(2, '0')}`, st };
-        });
-    });
+function groupByFloor(rooms: RoomSummary[]): FloorRow[] {
+    const map = new Map<number, RoomSummary[]>();
+    for (const r of rooms) {
+        if (!map.has(r.floor)) map.set(r.floor, []);
+        map.get(r.floor)!.push(r);
+    }
+    return Array.from(map.entries())
+        .sort(([a], [b]) => b - a)
+        .map(([floor, items]) => ({ floor, items }));
 }
-
-const ROOMS = buildRooms();
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function RoomStatusGrid() {
+interface Props {
+    rooms: RoomSummary[];
+}
+
+export default function RoomStatusGrid({ rooms }: Props) {
+    const floors = groupByFloor(rooms);
+
     return (
         <div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {ROOMS.map((row, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {floors.map(({ floor, items }) => (
+                    <div key={floor} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ width: 28, fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, fontFamily: 'JetBrains Mono' }}>
-                            F{ROOMS.length - i}
+                            F{floor}
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 4, flex: 1 }}>
-                            {row.map((r) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 4, flex: 1 }}>
+                            {items.map((r) => (
                                 <div
-                                    key={r.n}
-                                    title={`Quarto ${r.n} · ${COLORS[r.st].label}`}
+                                    key={r.number}
+                                    title={`Quarto ${r.number} · ${COLORS[r.status].label}`}
                                     style={{
-                                        background: COLORS[r.st].bg,
-                                        border: `1px solid ${COLORS[r.st].dot}33`,
+                                        background: COLORS[r.status].bg,
+                                        border: `1px solid ${COLORS[r.status].dot}33`,
                                         borderRadius: 5,
                                         padding: '6px 0',
                                         textAlign: 'center',
@@ -67,13 +60,13 @@ export default function RoomStatusGrid() {
                                         fontWeight: 600,
                                         color: 'var(--ink-2)',
                                         fontFamily: 'JetBrains Mono',
-                                        cursor: 'pointer',
+                                        cursor: 'default',
                                         transition: 'transform .12s ease',
                                     }}
                                     onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
                                     onMouseLeave={(e) => (e.currentTarget.style.transform = '')}
                                 >
-                                    {r.n}
+                                    {r.number}
                                 </div>
                             ))}
                         </div>
@@ -81,7 +74,6 @@ export default function RoomStatusGrid() {
                 ))}
             </div>
 
-            {/* Legend */}
             <div className="status-row" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
                 {Object.entries(COLORS).map(([k, v]) => (
                     <div key={k} className="status-item">

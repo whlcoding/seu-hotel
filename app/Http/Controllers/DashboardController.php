@@ -96,6 +96,16 @@ class DashboardController extends Controller
             ],
         ];
 
+        $rooms = Room::select('number', 'floor', 'status')
+            ->orderBy('floor')
+            ->orderBy('number')
+            ->get()
+            ->map(fn (Room $r) => [
+                'number' => $r->number,
+                'floor'  => $r->floor,
+                'status' => $r->status,
+            ]);
+
         return Inertia::render('Dashboard/Index', [
             'kpis' => $kpis,
             'occupancyRate' => $occupancyRate,
@@ -103,6 +113,7 @@ class DashboardController extends Controller
             'checkoutsToday' => $checkoutsToday,
             'revenueToday' => $revenueToday,
             'generatedAt' => now()->toIso8601String(),
+            'rooms' => $rooms,
         ]);
     }
 

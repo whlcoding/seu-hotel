@@ -218,6 +218,14 @@ export interface Ratings {
     wifi: number;
 }
 
+// ─── Room summary (dashboard grid) ───────────────────────────────────────────
+
+export interface RoomSummary {
+    number: string;
+    floor: number;
+    status: RoomStatus;
+}
+
 // ─── Page props (Inertia) ────────────────────────────────────────────────────
 
 export interface DashboardProps {
@@ -228,6 +236,7 @@ export interface DashboardProps {
     checkoutsToday?: number;
     revenueToday?: number;
     generatedAt?: string;
+    rooms?: RoomSummary[];
 }
 
 export interface ReservasProps {

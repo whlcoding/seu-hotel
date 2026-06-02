@@ -321,7 +321,7 @@ function TasksPanel({ tasks, onToggle }: TasksPanelProps) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function DashboardIndex({ kpis, generatedAt }: DashboardProps) {
+export default function DashboardIndex({ kpis, generatedAt, rooms = [] }: DashboardProps) {
     const [refreshing, setRefreshing] = useState(false);
     const [tasks, setTasks] = useState<Task[]>(TASKS_INIT);
     const [dismissed, setDismissed] = useState<string[]>([]);
@@ -426,11 +426,10 @@ export default function DashboardIndex({ kpis, generatedAt }: DashboardProps) {
                     <div className="panel-head">
                         <div>
                             <h3 className="panel-title">Status dos Quartos</h3>
-                            <div className="panel-sub">Visão rápida — 50 quartos</div>
+                            <div className="panel-sub">Visão rápida — {rooms.length} quartos</div>
                         </div>
-                        <button className="btn ghost sm">Ver mapa</button>
                     </div>
-                    <RoomStatusGrid />
+                    <RoomStatusGrid rooms={rooms} />
                 </div>
             </div>
 
