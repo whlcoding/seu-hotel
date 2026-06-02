@@ -39,7 +39,7 @@ function Sidebar({ active, setActive, collapsed, setCollapsed }) {
         <div className="brand-mark">
           <I.Hotel size={18} stroke={2} />
         </div>
-        <div className="brand-text">Hotel Management</div>
+        <div className="brand-text">Seu Hotel</div>
         <button className="sidebar-toggle" onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar" title={collapsed ? "Expandir" : "Recolher"}>
           <I.PanelLeft size={16} />
         </button>

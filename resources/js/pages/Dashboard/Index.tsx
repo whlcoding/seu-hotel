@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import AppLayout from '@/components/layout/AppLayout';
 import KpiCard from '@/components/hotel/KpiCard';
 import RoomStatusGrid from '@/components/hotel/RoomStatusGrid';
+import AppLayout from '@/components/layout/AppLayout';
 import { I } from '@/components/ui/Icons';
-import type { OccupancyPoint } from '@/types/hotel';
+import type { DashboardProps, OccupancyPoint } from '@/types/hotel';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -90,64 +90,60 @@ function OccupancyChart() {
                     opacity={0.6}
                 />
                 {/* Y axis ticks */}
-                {[0, 25, 50, 75, 100].map((v) => {
-                    const y = padT + chartH - (v / max) * chartH;
-                    return (
-                        <g key={v}>
-                            <line
-                                x1={padL} y1={y} x2={W - padR} y2={y}
-                                stroke="var(--line)"
-                                strokeWidth="1"
-                            />
-                            <text
-                                x={padL - 6} y={y + 4}
-                                textAnchor="end"
-                                fontSize={9}
-                                fill="var(--ink-3)"
-                            >
-                                {v}%
-                            </text>
-                        </g>
-                    );
-                })}
+                {[0, 25, 50, 75, 100].map((v) => (
+                    <g key={v}>
+                        <line
+                            x1={padL}
+                            y1={padT + chartH - (v / max) * chartH}
+                            x2={W - padR}
+                            y2={padT + chartH - (v / max) * chartH}
+                            stroke="var(--line)"
+                            strokeWidth="1"
+                        />
+                        <text
+                            x={padL - 6}
+                            y={padT + chartH - (v / max) * chartH + 4}
+                            textAnchor="end"
+                            fontSize={9}
+                            fill="var(--ink-3)"
+                        >
+                            {v}%
+                        </text>
+                    </g>
+                ))}
                 {/* Bars */}
-                {CHART_DATA.map((d, i) => {
-                    const slotW = chartW / CHART_DATA.length;
-                    const x = padL + i * slotW + (slotW - barW) / 2;
-                    const barH2 = (d.value / max) * chartH;
-                    const y = padT + chartH - barH2;
-                    const isMax = d.value === Math.max(...CHART_DATA.map((c) => c.value));
-                    return (
-                        <g key={d.label}>
-                            <rect
-                                x={x} y={y}
-                                width={barW} height={barH2}
-                                rx={4}
-                                fill={isMax ? 'var(--blue)' : 'var(--blue-soft)'}
-                                stroke={isMax ? 'var(--blue)' : 'transparent'}
-                            />
-                            <text
-                                x={x + barW / 2}
-                                y={y - 4}
-                                textAnchor="middle"
-                                fontSize={9.5}
-                                fontWeight={700}
-                                fill={isMax ? 'var(--blue-ink)' : 'var(--ink-3)'}
-                            >
-                                {d.value}%
-                            </text>
-                            <text
-                                x={x + barW / 2}
-                                y={padT + chartH + 14}
-                                textAnchor="middle"
-                                fontSize={10}
-                                fill="var(--ink-3)"
-                            >
-                                {d.label}
-                            </text>
-                        </g>
-                    );
-                })}
+                {CHART_DATA.map((d, i) => (
+                    <g key={d.label}>
+                        <rect
+                            x={padL + i * (chartW / CHART_DATA.length) + ((chartW / CHART_DATA.length) - barW) / 2}
+                            y={padT + chartH - (d.value / max) * chartH}
+                            width={barW}
+                            height={(d.value / max) * chartH}
+                            rx={4}
+                            fill={d.value === Math.max(...CHART_DATA.map((c) => c.value)) ? 'var(--blue)' : 'var(--blue-soft)'}
+                            stroke={d.value === Math.max(...CHART_DATA.map((c) => c.value)) ? 'var(--blue)' : 'transparent'}
+                        />
+                        <text
+                            x={padL + i * (chartW / CHART_DATA.length) + ((chartW / CHART_DATA.length) - barW) / 2 + barW / 2}
+                            y={padT + chartH - (d.value / max) * chartH - 4}
+                            textAnchor="middle"
+                            fontSize={9.5}
+                            fontWeight={700}
+                            fill={d.value === Math.max(...CHART_DATA.map((c) => c.value)) ? 'var(--blue-ink)' : 'var(--ink-3)'}
+                        >
+                            {d.value}%
+                        </text>
+                        <text
+                            x={padL + i * (chartW / CHART_DATA.length) + ((chartW / CHART_DATA.length) - barW) / 2 + barW / 2}
+                            y={padT + chartH + 14}
+                            textAnchor="middle"
+                            fontSize={10}
+                            fill="var(--ink-3)"
+                        >
+                            {d.label}
+                        </text>
+                    </g>
+                ))}
             </svg>
 
             <div
@@ -325,7 +321,7 @@ function TasksPanel({ tasks, onToggle }: TasksPanelProps) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function DashboardIndex() {
+export default function DashboardIndex({ kpis, generatedAt }: DashboardProps) {
     const [refreshing, setRefreshing] = useState(false);
     const [tasks, setTasks] = useState<Task[]>(TASKS_INIT);
     const [dismissed, setDismissed] = useState<string[]>([]);
@@ -337,16 +333,17 @@ export default function DashboardIndex() {
     };
 
     const onRefresh = () => {
-        if (refreshing) return;
-        setRefreshing(true);
-        showToast('Atualizando dados…');
-        setTimeout(() => {
-            setRefreshing(false);
-            showToast(
-                'Dados atualizados às ' +
-                    new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            );
-        }, 1200);
+        if (!refreshing) {
+            setRefreshing(true);
+            showToast('Atualizando dados…');
+            setTimeout(() => {
+                setRefreshing(false);
+                showToast(
+                    'Dados atualizados às ' +
+                        new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                );
+            }, 1200);
+        }
     };
 
     const toggleTask = (id: string) => {
@@ -367,13 +364,13 @@ export default function DashboardIndex() {
         setDismissed((d) => [...d, id]);
     };
 
-    const today = new Date('2026-05-15T10:00:00');
-    const dateLong = today.toLocaleDateString('pt-BR', {
+    const updatedAt = generatedAt ? new Date(generatedAt) : new Date();
+    const dateLong = updatedAt.toLocaleDateString('pt-BR', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
     });
-    const weekday = today.toLocaleDateString('pt-BR', { weekday: 'long' });
+    const weekday = updatedAt.toLocaleDateString('pt-BR', { weekday: 'long' });
 
     return (
         <AppLayout title="Dashboard" breadcrumb={[{ label: 'Dashboard' }]}>
@@ -406,46 +403,9 @@ export default function DashboardIndex() {
 
             {/* KPI Grid */}
             <div className="kpi-grid">
-                <KpiCard
-                    tone="blue"
-                    icon="Hotel"
-                    value="78%"
-                    label="Taxa de Ocupação"
-                    sub="39 de 50 quartos ocupados"
-                    delta="6,1 pts"
-                    deltaDir="up"
-                    spark={[58, 62, 68, 71, 65, 78, 88, 82, 78]}
-                />
-                <KpiCard
-                    tone="green"
-                    icon="ArrowDownTray"
-                    value="5"
-                    label="Check-ins Hoje"
-                    sub="próximas chegadas em 2h"
-                    delta="2"
-                    deltaDir="up"
-                    spark={[3, 4, 2, 6, 5, 7, 5]}
-                />
-                <KpiCard
-                    tone="orange"
-                    icon="ArrowUpTray"
-                    value="3"
-                    label="Check-outs Hoje"
-                    sub="last call: 12:00"
-                    delta="1"
-                    deltaDir="down"
-                    spark={[4, 3, 5, 6, 4, 4, 3]}
-                />
-                <KpiCard
-                    tone="purple"
-                    icon="Cash"
-                    value="R$ 2.340"
-                    label="Receita Prevista Hoje"
-                    sub="ticket médio R$ 468"
-                    delta="R$ 320"
-                    deltaDir="up"
-                    spark={[1800, 2100, 1950, 2400, 2150, 2280, 2340]}
-                />
+                {kpis.map((kpi) => (
+                    <KpiCard key={`${kpi.label}-${kpi.tone}`} {...kpi} />
+                ))}
             </div>
 
             {/* Chart + Alerts */}

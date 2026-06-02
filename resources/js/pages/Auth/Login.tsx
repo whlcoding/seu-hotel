@@ -73,7 +73,7 @@ function BrandPanel() {
                     <IconHotel />
                 </div>
                 <div className="login-brand-name">
-                    Hotel Management
+                    Seu Hotel
                     <span>Sistema de Gestão</span>
                 </div>
             </div>
@@ -227,7 +227,7 @@ return;
                                     </svg>
                                 </div>
                                 <div className="login-brand-name" style={{ color: 'var(--ink)' }}>
-                                    Hotel Management
+                                    Seu Hotel
                                     <span style={{ color: 'var(--ink-3)' }}>Sistema de Gestão</span>
                                 </div>
                             </div>
@@ -366,7 +366,7 @@ return;
                     </div>
 
                     <div className="login-form-foot">
-                        © 2026 Hotel Management. <a href="#">Termos de uso</a> · <a href="#">Privacidade</a>
+                        © 2026 Seu Hotel. <a href="#">Termos de uso</a> · <a href="#">Privacidade</a>
                     </div>
                 </main>
             </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\CheckoutController;
@@ -14,9 +15,8 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout')->middleware('auth');
 
-// App
-Route::get('/', fn() => Inertia::render('Dashboard/Index'))->name('dashboard');
 Route::middleware('auth')->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
     Route::resource('reservas', ReservationController::class);
@@ -25,7 +25,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
     Route::post('/checkout/finalize', [CheckoutController::class, 'finalize'])->name('checkout.finalize');
-    Route::get('/chatbot', fn() => Inertia::render('Chatbot/Index'))->name('chatbot');
     Route::post('/chatbot/ask', [ChatbotController::class, 'ask'])->name('chatbot.ask');
     Route::get('/equipe', fn() => Inertia::render('Equipe/Index'))->name('equipe');
     Route::get('/limpeza', fn() => Inertia::render('Limpeza/Index'))->name('limpeza');

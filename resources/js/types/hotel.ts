@@ -221,11 +221,13 @@ export interface Ratings {
 // ─── Page props (Inertia) ────────────────────────────────────────────────────
 
 export interface DashboardProps {
+    kpis: KpiData[];
     reservations?: Reservation[];
     occupancyRate?: number;
     checkinsToday?: number;
     checkoutsToday?: number;
     revenueToday?: number;
+    generatedAt?: string;
 }
 
 export interface ReservasProps {

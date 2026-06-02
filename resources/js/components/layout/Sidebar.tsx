@@ -45,7 +45,7 @@ export default function Sidebar({ collapsed, onToggle, onItemClick }: SidebarPro
                 <div className="brand-mark">
                     <Hotel size={18} stroke={2} />
                 </div>
-                <div className="brand-text">Hotel Management</div>
+                <div className="brand-text">Seu Hotel</div>
                 <button
                     className="sidebar-toggle"
                     onClick={onToggle}
