@@ -237,6 +237,7 @@ export interface DashboardProps {
     revenueToday?: number;
     generatedAt?: string;
     rooms?: RoomSummary[];
+    chartData?: OccupancyPoint[];
 }
 
 export interface ReservasProps {

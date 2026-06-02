@@ -5,17 +5,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import { I } from '@/components/ui/Icons';
 import type { DashboardProps, OccupancyPoint } from '@/types/hotel';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const CHART_DATA: OccupancyPoint[] = [
-    { label: 'Seg', full: 'Segunda, 11 mai',  value: 62, rooms: 31 },
-    { label: 'Ter', full: 'Terça, 12 mai',    value: 68, rooms: 34 },
-    { label: 'Qua', full: 'Quarta, 13 mai',   value: 71, rooms: 36 },
-    { label: 'Qui', full: 'Quinta, 14 mai',   value: 65, rooms: 33 },
-    { label: 'Sex', full: 'Sexta, 15 mai',    value: 78, rooms: 39 },
-    { label: 'Sáb', full: 'Sábado, 16 mai',   value: 88, rooms: 44 },
-    { label: 'Dom', full: 'Domingo, 17 mai',  value: 82, rooms: 41 },
-];
 
 interface Task {
     id: string;
@@ -36,143 +25,144 @@ const TASKS_INIT: Task[] = [
 
 // ─── OccupancyChart ───────────────────────────────────────────────────────────
 
-function OccupancyChart() {
+interface OccupancyChartProps {
+    data: OccupancyPoint[];
+    totalRooms: number;
+}
+
+function fmtPct(v: number) {
+    return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+}
+
+function fmtPts(v: number) {
+    return Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' pts';
+}
+
+function computeChartStats(data: OccupancyPoint[]) {
+    if (!data.length) return { avg: 0, prevAvg: 0, delta: 0, maxVal: 0, peak: null as OccupancyPoint | null, valley: null as OccupancyPoint | null };
+    const avg = Math.round((data.reduce((s, d) => s + d.value, 0) / data.length) * 10) / 10;
+    const prev = data.slice(0, -1);
+    const prevAvg = prev.length
+        ? Math.round((prev.reduce((s, d) => s + d.value, 0) / prev.length) * 10) / 10
+        : avg;
+    const delta = Math.round((data[data.length - 1].value - prevAvg) * 10) / 10;
+    const peak = data.reduce((m, d) => d.value >= m.value ? d : m);
+    const valley = data.reduce((m, d) => d.value <= m.value ? d : m);
+    return { avg, prevAvg, delta, maxVal: peak.value, peak, valley };
+}
+
+function OccupancyChart({ data, totalRooms }: OccupancyChartProps) {
     const [range, setRange] = useState<'7d' | '14d' | '30d'>('7d');
+    const { avg, prevAvg, delta, maxVal, peak, valley } = computeChartStats(data);
 
     const W = 460, H = 160;
     const padL = 32, padR = 16, padT = 12, padB = 32;
     const chartW = W - padL - padR;
     const chartH = H - padT - padB;
-    const max = 100;
-    const barW = Math.floor(chartW / CHART_DATA.length) - 6;
+    const MAX = 100;
+    const colW = data.length ? chartW / data.length : 0;
+    const barW = data.length ? Math.floor(colW) - 6 : 0;
     const GOAL = 70;
-    const goalY = padT + chartH - (GOAL / max) * chartH;
+    const goalY = padT + chartH - (GOAL / MAX) * chartH;
 
     return (
         <div className="panel">
             <div className="panel-head">
                 <div>
                     <h3 className="panel-title">Ocupação — Últimos 7 Dias</h3>
-                    <div className="panel-sub">Quartos ocupados como % do inventário (50)</div>
+                    <div className="panel-sub">Quartos ocupados como % do inventário ({totalRooms})</div>
                 </div>
-                <div className="tabs" role="tablist">
-                    {(['7d', '14d', '30d'] as const).map((r) => (
-                        <button
-                            key={r}
-                            className={range === r ? 'active' : ''}
-                            onClick={() => setRange(r)}
-                        >
-                            {r}
-                        </button>
-                    ))}
-                </div>
+                {/*<div className="tabs" role="tablist">*/}
+                {/*    {(['7d', '14d', '30d'] as const).map((r) => (*/}
+                {/*        <button key={r} className={range === r ? 'active' : ''} onClick={() => setRange(r)}>*/}
+                {/*            {r}*/}
+                {/*        </button>*/}
+                {/*    ))}*/}
+                {/*</div>*/}
             </div>
 
             <div className="chart-summary">
-                <div className="chart-big">73,4%</div>
-                <div className="kpi-delta up">▲ 4,2 pts</div>
+                <div className="chart-big">{fmtPct(avg)}</div>
+                <div className={`kpi-delta ${delta >= 0 ? 'up' : 'down'}`}>
+                    {delta >= 0 ? '▲' : '▼'} {fmtPts(delta)}
+                </div>
                 <div style={{ color: 'var(--ink-3)', fontSize: 12, marginLeft: 'auto' }}>
-                    vs. semana anterior (69,2%)
+                    vs. 6 dias anteriores ({fmtPct(prevAvg)})
                 </div>
             </div>
 
-            <svg
-                width="100%"
-                viewBox={`0 0 ${W} ${H}`}
-                style={{ overflow: 'visible' }}
-            >
+            <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
                 {/* Goal line */}
                 <line
                     x1={padL} y1={goalY} x2={W - padR} y2={goalY}
-                    stroke="var(--green)"
-                    strokeWidth="1.5"
-                    strokeDasharray="5 4"
-                    opacity={0.6}
+                    stroke="var(--green)" strokeWidth="1.5" strokeDasharray="5 4" opacity={0.6}
                 />
                 {/* Y axis ticks */}
                 {[0, 25, 50, 75, 100].map((v) => (
                     <g key={v}>
                         <line
-                            x1={padL}
-                            y1={padT + chartH - (v / max) * chartH}
-                            x2={W - padR}
-                            y2={padT + chartH - (v / max) * chartH}
-                            stroke="var(--line)"
-                            strokeWidth="1"
+                            x1={padL} y1={padT + chartH - (v / MAX) * chartH}
+                            x2={W - padR} y2={padT + chartH - (v / MAX) * chartH}
+                            stroke="var(--line)" strokeWidth="1"
                         />
                         <text
-                            x={padL - 6}
-                            y={padT + chartH - (v / max) * chartH + 4}
-                            textAnchor="end"
-                            fontSize={9}
-                            fill="var(--ink-3)"
+                            x={padL - 6} y={padT + chartH - (v / MAX) * chartH + 4}
+                            textAnchor="end" fontSize={9} fill="var(--ink-3)"
                         >
                             {v}%
                         </text>
                     </g>
                 ))}
                 {/* Bars */}
-                {CHART_DATA.map((d, i) => (
-                    <g key={d.label}>
-                        <rect
-                            x={padL + i * (chartW / CHART_DATA.length) + ((chartW / CHART_DATA.length) - barW) / 2}
-                            y={padT + chartH - (d.value / max) * chartH}
-                            width={barW}
-                            height={(d.value / max) * chartH}
-                            rx={4}
-                            fill={d.value === Math.max(...CHART_DATA.map((c) => c.value)) ? 'var(--blue)' : 'var(--blue-soft)'}
-                            stroke={d.value === Math.max(...CHART_DATA.map((c) => c.value)) ? 'var(--blue)' : 'transparent'}
-                        />
-                        <text
-                            x={padL + i * (chartW / CHART_DATA.length) + ((chartW / CHART_DATA.length) - barW) / 2 + barW / 2}
-                            y={padT + chartH - (d.value / max) * chartH - 4}
-                            textAnchor="middle"
-                            fontSize={9.5}
-                            fontWeight={700}
-                            fill={d.value === Math.max(...CHART_DATA.map((c) => c.value)) ? 'var(--blue-ink)' : 'var(--ink-3)'}
-                        >
-                            {d.value}%
-                        </text>
-                        <text
-                            x={padL + i * (chartW / CHART_DATA.length) + ((chartW / CHART_DATA.length) - barW) / 2 + barW / 2}
-                            y={padT + chartH + 14}
-                            textAnchor="middle"
-                            fontSize={10}
-                            fill="var(--ink-3)"
-                        >
-                            {d.label}
-                        </text>
-                    </g>
-                ))}
+                {data.map((d, i) => {
+                    const isMax = d.value === maxVal;
+                    const x = padL + i * colW + (colW - barW) / 2;
+                    return (
+                        <g key={d.label}>
+                            <rect
+                                x={x} y={padT + chartH - (d.value / MAX) * chartH}
+                                width={barW} height={(d.value / MAX) * chartH}
+                                rx={4}
+                                fill={isMax ? 'var(--blue)' : 'var(--blue-soft)'}
+                                stroke={isMax ? 'var(--blue)' : 'transparent'}
+                            />
+                            <text
+                                x={x + barW / 2} y={padT + chartH - (d.value / MAX) * chartH - 4}
+                                textAnchor="middle" fontSize={9.5} fontWeight={700}
+                                fill={isMax ? 'var(--blue-ink)' : 'var(--ink-3)'}
+                            >
+                                {d.value}%
+                            </text>
+                            <text
+                                x={x + barW / 2} y={padT + chartH + 14}
+                                textAnchor="middle" fontSize={10} fill="var(--ink-3)"
+                            >
+                                {d.label}
+                            </text>
+                        </g>
+                    );
+                })}
             </svg>
 
-            <div
-                className="status-row"
-                style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}
-            >
+            <div className="status-row" style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
                 <div className="status-item">
                     <span className="status-dot" style={{ background: '#378ADD' }} />
                     Ocupação %
                 </div>
                 <div className="status-item">
-                    <span
-                        className="status-dot"
-                        style={{ background: '#639922', height: 2, marginTop: 3 }}
-                    />
+                    <span className="status-dot" style={{ background: '#639922', height: 2, marginTop: 3 }} />
                     Meta diária (70%)
                 </div>
-                <div className="status-item" style={{ marginLeft: 'auto' }}>
-                    Pico:{' '}
-                    <strong style={{ color: 'var(--ink)' }} className="mono">
-                        88% sáb
-                    </strong>
-                </div>
-                <div className="status-item">
-                    Vale:{' '}
-                    <strong style={{ color: 'var(--ink)' }} className="mono">
-                        62% seg
-                    </strong>
-                </div>
+                {peak && (
+                    <div className="status-item" style={{ marginLeft: 'auto' }}>
+                        Pico: <strong style={{ color: 'var(--ink)' }} className="mono">{peak.value}% {peak.label}</strong>
+                    </div>
+                )}
+                {/*{valley && (*/}
+                {/*    <div className="status-item">*/}
+                {/*        Vale: <strong style={{ color: 'var(--ink)' }} className="mono">{valley.value}% {valley.label}</strong>*/}
+                {/*    </div>*/}
+                {/*)}*/}
             </div>
         </div>
     );
@@ -321,7 +311,7 @@ function TasksPanel({ tasks, onToggle }: TasksPanelProps) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function DashboardIndex({ kpis, generatedAt, rooms = [] }: DashboardProps) {
+export default function DashboardIndex({ kpis, generatedAt, rooms = [], chartData = [] }: DashboardProps) {
     const [refreshing, setRefreshing] = useState(false);
     const [tasks, setTasks] = useState<Task[]>(TASKS_INIT);
     const [dismissed, setDismissed] = useState<string[]>([]);
@@ -410,7 +400,7 @@ export default function DashboardIndex({ kpis, generatedAt, rooms = [] }: Dashbo
 
             {/* Chart + Alerts */}
             <div className="grid-2">
-                <OccupancyChart />
+                <OccupancyChart data={chartData} totalRooms={rooms.length} />
                 <AlertsPanel
                     dismissed={dismissed}
                     onConfirm={confirmAlert}

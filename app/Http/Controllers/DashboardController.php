@@ -96,6 +96,13 @@ class DashboardController extends Controller
             ],
         ];
 
+        $chartData = $series->map(fn (array $day) => [
+            'label' => $day['label'],
+            'full'  => $day['full'],
+            'value' => $day['occupancy'],
+            'rooms' => $day['occupiedRooms'],
+        ]);
+
         $rooms = Room::select('number', 'floor', 'status')
             ->orderBy('floor')
             ->orderBy('number')
@@ -113,7 +120,8 @@ class DashboardController extends Controller
             'checkoutsToday' => $checkoutsToday,
             'revenueToday' => $revenueToday,
             'generatedAt' => now()->toIso8601String(),
-            'rooms' => $rooms,
+            'chartData'   => $chartData,
+            'rooms'       => $rooms,
         ]);
     }
 
@@ -137,12 +145,13 @@ class DashboardController extends Controller
             $occupiedRooms = $occupiedReservations->pluck('room_id')->unique()->count();
 
             return [
-                'label' => $this->dayShortLabel($day),
-                'full' => $this->dayFullLabel($day),
-                'occupancy' => $this->percentage($occupiedRooms, $totalRooms),
-                'checkins' => $checkins,
-                'checkouts' => $checkouts,
-                'revenue' => $revenue,
+                'label'         => $this->dayShortLabel($day),
+                'full'          => $this->dayFullLabel($day),
+                'occupancy'     => $this->percentage($occupiedRooms, $totalRooms),
+                'occupiedRooms' => $occupiedRooms,
+                'checkins'      => $checkins,
+                'checkouts'     => $checkouts,
+                'revenue'       => $revenue,
             ];
         })->values();
     }
