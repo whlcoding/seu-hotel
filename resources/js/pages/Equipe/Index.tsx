@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { router, usePage } from '@inertiajs/react';
 import AppLayout from '@/components/layout/AppLayout';
 import { I } from '@/components/ui/Icons';
-import type { TeamMember, TeamRole, TeamMemberStatus, Shift, AvatarColor } from '@/types/hotel';
+import type { TeamMember, TeamRole, TeamMemberStatus, Shift, AvatarColor, EquipeProps } from '@/types/hotel';
 
 // ---------- Static data ----------
 
@@ -33,16 +34,6 @@ const WEEKDAYS = [
     { short: 'Dom', weekend: true },
 ];
 
-const TEAM_INIT: TeamMember[] = [
-    { id: 1, name: 'Mariana Reis', email: 'mariana.reis@hotel.com', phone: '+55 11 99977-2211', cpf: '441.880.220-77', role: 'gerente', status: 'ativo', admission: '2023-03-15', shifts: ['mat', 'vesp'], salary: 6800, avatarColor: 'purple', schedule: ['mat','mat','mat','mat','mat','off','off'] },
-    { id: 2, name: 'João da Silva', email: 'joao.silva@hotel.com', phone: '+55 85 99812-3456', cpf: '342.118.690-55', role: 'housekeeping', status: 'ativo', admission: '2025-01-10', shifts: ['mat'], salary: 2400, avatarColor: 'green', schedule: ['mat','vesp','mat','mat','vesp','off','off'] },
-    { id: 3, name: 'Camila Souza', email: 'camila.souza@hotel.com', phone: '+55 21 99800-7733', cpf: '108.554.221-09', role: 'recepcao', status: 'ativo', admission: '2024-05-22', shifts: ['vesp'], salary: 2900, avatarColor: 'blue', schedule: ['vesp','mat','vesp','off','mat','mat','vesp'] },
-    { id: 4, name: 'Pedro Henrique', email: 'pedro.henrique@hotel.com', phone: '+55 31 98800-1122', cpf: '903.221.114-44', role: 'manutencao', status: 'ativo', admission: '2024-09-01', shifts: ['mat', 'vesp'], salary: 3200, avatarColor: 'orange', schedule: ['off','mat','mat','mat','off','vesp','mat'] },
-    { id: 5, name: 'Larissa Mendonça', email: 'lari.mend@hotel.com', phone: '+55 41 99655-3322', cpf: '551.224.788-90', role: 'housekeeping', status: 'ativo', admission: '2024-11-18', shifts: ['vesp'], salary: 2400, avatarColor: 'green', schedule: ['vesp','vesp','off','vesp','vesp','vesp','off'] },
-    { id: 6, name: 'Rafael Lima', email: 'rafael.lima@hotel.com', phone: '+55 11 99811-4422', cpf: '775.331.004-12', role: 'recepcao', status: 'ferias', admission: '2023-07-04', shifts: ['mat'], salary: 3100, avatarColor: 'blue', schedule: ['ferias','ferias','ferias','ferias','ferias','ferias','ferias'] },
-    { id: 7, name: 'Beatriz Castro', email: 'biacastro@hotel.com', phone: '+55 11 98744-5566', cpf: '215.667.890-12', role: 'cozinha', status: 'ativo', admission: '2025-02-20', shifts: ['mat', 'vesp'], salary: 2700, avatarColor: 'orange', schedule: ['mat','off','mat','vesp','vesp','mat','off'] },
-    { id: 8, name: 'Eduardo Antunes', email: 'eduardo.antunes@hotel.com', phone: '+55 21 99112-9988', cpf: '903.221.118-77', role: 'manutencao', status: 'inativo', admission: '2022-08-12', shifts: ['noite'], salary: 2900, avatarColor: 'orange', schedule: ['off','off','off','off','off','off','off'] },
-];
 
 // ---------- Helpers ----------
 
@@ -534,9 +525,10 @@ function ScheduleView({ team, onChange }: { team: TeamMember[]; onChange: (membe
 
 // ---------- Page ----------
 
-export default function EquipeIndex() {
+export default function EquipeIndex({ team: teamProp = [] }: EquipeProps) {
+    const { props } = usePage<{ team?: TeamMember[] }>();
     const [tab, setTab] = useState<'team' | 'schedule'>('team');
-    const [team, setTeam] = useState<TeamMember[]>(TEAM_INIT);
+    const [team, setTeam] = useState<TeamMember[]>(teamProp);
     const [search, setSearch] = useState('');
     const [role, setRole] = useState<TeamRole | 'all'>('all');
     const [status, setStatus] = useState<TeamMemberStatus | 'all'>('all');
@@ -545,6 +537,8 @@ export default function EquipeIndex() {
     const [modal, setModal] = useState<TeamMember | null | 'new'>(null);
     const [toast, setToast] = useState<{ msg: string; kind: string } | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+
+    useEffect(() => { setTeam(props.team ?? []); }, [props.team]);
 
     useEffect(() => {
         if (!menuOpen) return;
@@ -596,50 +590,72 @@ export default function EquipeIndex() {
                 showToast(`Recibo gerado para ${row.name}`, 'success');
                 break;
             case 'deactivate':
-                if (window.confirm(`Desativar ${row.name}? O acesso ao sistema será revogado.`)) {
-                    setTeam(team.map(m => m.id === row.id ? { ...m, status: 'inativo' } : m));
-                    showToast(`${row.name} foi desativado(a)`, 'warn');
-                }
+                if (!window.confirm(`Desativar ${row.name}? O acesso ao sistema será revogado.`)) break;
+                router.patch(`/equipe/${row.id}/status`, { status: 'inativo' }, {
+                    preserveState: true,
+                    onSuccess: () => showToast(`${row.name} foi desativado(a)`, 'warn'),
+                });
                 break;
             case 'activate':
-                setTeam(team.map(m => m.id === row.id ? { ...m, status: 'ativo' } : m));
-                showToast(`${row.name} foi reativado(a)`, 'success');
+                router.patch(`/equipe/${row.id}/status`, { status: 'ativo' }, {
+                    preserveState: true,
+                    onSuccess: () => showToast(`${row.name} foi reativado(a)`, 'success'),
+                });
                 break;
         }
     };
 
     const handleSave = (form: MemberForm) => {
-        if (form._delete) {
-            setTeam(team.filter(m => m.id !== form.id));
-            setModal(null);
-            showToast(`${form.name} removido(a) da equipe`, 'warn');
+        const payload = {
+            name: form.name, email: form.email, phone: form.phone, cpf: form.cpf,
+            admission: form.admission, role: form.role, status: form.status,
+            shifts: form.shifts, salary: form.salary || null,
+        };
+
+        if (form._delete && form.id) {
+            router.delete(`/equipe/${form.id}`, {
+                preserveState: true,
+                onSuccess: () => { setModal(null); showToast(`${form.name} removido(a) da equipe`, 'warn'); },
+            });
             return;
         }
+
+        const options = {
+            preserveState: true as const,
+            onSuccess: () => {
+                setModal(null);
+                showToast(form.id ? `Dados de ${form.name} atualizados` : `${form.name} adicionado(a) à equipe`, 'success');
+            },
+            onError: () => showToast('Erro ao salvar. Verifique os campos.', 'error'),
+        };
+
         if (form.id) {
-            setTeam(team.map(m => m.id === form.id ? { ...m, ...form, salary: Number(form.salary) || 0 } : m));
-            showToast(`Dados de ${form.name} atualizados`, 'success');
+            router.put(`/equipe/${form.id}`, payload, options);
         } else {
-            const id = Math.max(...team.map(m => m.id)) + 1;
-            const colors: AvatarColor[] = ['blue','green','purple','orange',''];
-            setTeam([...team, { ...form, id, salary: Number(form.salary) || 0, avatarColor: colors[Math.floor(Math.random() * colors.length)] }]);
-            showToast(`${form.name} adicionado(a) à equipe`, 'success');
+            router.post('/equipe', payload, options);
         }
-        setModal(null);
     };
 
     const onRefresh = () => {
+        if (refreshing) return;
         setRefreshing(true);
-        showToast('Atualizando…', '');
-        setTimeout(() => { setRefreshing(false); showToast('Dados atualizados', 'success'); }, 800);
+        router.reload({
+            only: ['team'],
+            onSuccess: () => { setRefreshing(false); showToast('Dados atualizados', 'success'); },
+            onError:   () => setRefreshing(false),
+        });
     };
 
     const updateSchedule = (memberId: number, dayIdx: number, newShift: Shift) => {
-        setTeam(team.map(m => {
+        setTeam(prev => prev.map(m => {
             if (m.id !== memberId) return m;
             const sched = [...m.schedule];
             sched[dayIdx] = newShift;
             return { ...m, schedule: sched };
         }));
+        router.patch(`/equipe/${memberId}/schedule`, { day: dayIdx, shift: newShift }, {
+            preserveState: true,
+        });
     };
 
     const clearFilters = () => { setSearch(''); setRole('all'); setStatus('all'); };

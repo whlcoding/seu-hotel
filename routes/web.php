@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -30,7 +31,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
     Route::post('/checkout/finalize', [CheckoutController::class, 'finalize'])->name('checkout.finalize');
     Route::post('/chatbot/ask', [ChatbotController::class, 'ask'])->name('chatbot.ask');
-    Route::get('/equipe', fn() => Inertia::render('Equipe/Index'))->name('equipe');
+    Route::prefix('equipe')->name('equipe.')->group(function () {
+        Route::get('/', [TeamController::class, 'index'])->name('index');
+        Route::post('/', [TeamController::class, 'store'])->name('store');
+        Route::put('/{user}', [TeamController::class, 'update'])->name('update');
+        Route::delete('/{user}', [TeamController::class, 'destroy'])->name('destroy');
+        Route::patch('/{user}/status', [TeamController::class, 'updateStatus'])->name('status');
+        Route::patch('/{user}/schedule', [TeamController::class, 'updateSchedule'])->name('schedule');
+    });
     Route::get('/limpeza', fn() => Inertia::render('Limpeza/Index'))->name('limpeza');
     Route::get('/relatorios', fn() => Inertia::render('Relatorios/Index'))->name('relatorios');
 });

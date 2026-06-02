@@ -255,6 +255,7 @@ export interface CheckinProps {
 
 export interface EquipeProps {
     team?: TeamMember[];
+    errors?: Record<string, string>;
 }
 
 export interface LimpezaProps {
