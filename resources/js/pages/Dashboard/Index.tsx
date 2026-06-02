@@ -39,7 +39,16 @@ function fmtPts(v: number) {
 }
 
 function computeChartStats(data: OccupancyPoint[]) {
-    if (!data.length) return { avg: 0, prevAvg: 0, delta: 0, maxVal: 0, peak: null as OccupancyPoint | null, valley: null as OccupancyPoint | null };
+    if (!data.length) {
+        return {
+            avg: 0,
+            prevAvg: 0,
+            delta: 0,
+            maxVal: 0,
+            peak: null as OccupancyPoint | null,
+        };
+    }
+
     const avg = Math.round((data.reduce((s, d) => s + d.value, 0) / data.length) * 10) / 10;
     const prev = data.slice(0, -1);
     const prevAvg = prev.length
@@ -47,13 +56,12 @@ function computeChartStats(data: OccupancyPoint[]) {
         : avg;
     const delta = Math.round((data[data.length - 1].value - prevAvg) * 10) / 10;
     const peak = data.reduce((m, d) => d.value >= m.value ? d : m);
-    const valley = data.reduce((m, d) => d.value <= m.value ? d : m);
-    return { avg, prevAvg, delta, maxVal: peak.value, peak, valley };
+
+    return { avg, prevAvg, delta, maxVal: peak.value, peak };
 }
 
 function OccupancyChart({ data, totalRooms }: OccupancyChartProps) {
-    const [range, setRange] = useState<'7d' | '14d' | '30d'>('7d');
-    const { avg, prevAvg, delta, maxVal, peak, valley } = computeChartStats(data);
+    const { avg, prevAvg, delta, maxVal, peak } = computeChartStats(data);
 
     const W = 460, H = 160;
     const padL = 32, padR = 16, padT = 12, padB = 32;
@@ -72,13 +80,6 @@ function OccupancyChart({ data, totalRooms }: OccupancyChartProps) {
                     <h3 className="panel-title">Ocupação — Últimos 7 Dias</h3>
                     <div className="panel-sub">Quartos ocupados como % do inventário ({totalRooms})</div>
                 </div>
-                {/*<div className="tabs" role="tablist">*/}
-                {/*    {(['7d', '14d', '30d'] as const).map((r) => (*/}
-                {/*        <button key={r} className={range === r ? 'active' : ''} onClick={() => setRange(r)}>*/}
-                {/*            {r}*/}
-                {/*        </button>*/}
-                {/*    ))}*/}
-                {/*</div>*/}
             </div>
 
             <div className="chart-summary">
@@ -117,6 +118,7 @@ function OccupancyChart({ data, totalRooms }: OccupancyChartProps) {
                 {data.map((d, i) => {
                     const isMax = d.value === maxVal;
                     const x = padL + i * colW + (colW - barW) / 2;
+
                     return (
                         <g key={d.label}>
                             <rect
@@ -158,11 +160,6 @@ function OccupancyChart({ data, totalRooms }: OccupancyChartProps) {
                         Pico: <strong style={{ color: 'var(--ink)' }} className="mono">{peak.value}% {peak.label}</strong>
                     </div>
                 )}
-                {/*{valley && (*/}
-                {/*    <div className="status-item">*/}
-                {/*        Vale: <strong style={{ color: 'var(--ink)' }} className="mono">{valley.value}% {valley.label}</strong>*/}
-                {/*    </div>*/}
-                {/*)}*/}
             </div>
         </div>
     );
