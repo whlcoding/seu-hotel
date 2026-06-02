@@ -1,7 +1,6 @@
 services:
   app:
     build: .
-    ports:
-      - "10000:10000"
+    network_mode: host
     env_file:
       - .env

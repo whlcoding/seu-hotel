@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     zip \
     libicu-dev \
     libzip-dev \
-    libonig-dev
+    libonig-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install \
     pdo_mysql \
@@ -19,7 +20,8 @@ RUN docker-php-ext-install \
     bcmath
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -31,10 +33,11 @@ RUN composer install \
     --optimize-autoloader \
     --no-interaction
 
-RUN npm ci
-RUN npm run build
+RUN npm ci && npm run build
 
-RUN chmod -R 775 storage bootstrap/cache
+RUN chmod -R 775 storage bootstrap/cache \
+    && chmod +x docker/start.sh
 
 EXPOSE 8080
-CMD ["sh", "-c", "php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate && php artisan db:seed && php -S 0.0.0.0:$PORT -t public"]
+
+CMD ["docker/start.sh"]

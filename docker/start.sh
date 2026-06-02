@@ -1,20 +1,15 @@
 #!/bin/sh
+set -e
 
-echo "Starting Laravel production setup..."
-
-# limpa caches antigos
+echo "Clearing and rebuilding caches..."
 php artisan optimize:clear
-
-# gera caches
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# roda migrations
-php artisan migrate --force
+echo "Resetting database and seeding..."
+php artisan migrate:fresh --seed --force
 
-echo "Application ready"
-
-php artisan serve \
-    --host=0.0.0.0 \
-    --port=10000
+PORT="${PORT:-8080}"
+echo "Starting server on 0.0.0.0:${PORT}..."
+exec php -S "0.0.0.0:${PORT}" -t public
