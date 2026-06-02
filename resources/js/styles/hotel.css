@@ -2989,7 +2989,8 @@ table.reservations { width: 100%; }
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    min-height: 620px;
+    height: calc(100vh - 230px);
+    min-height: 500px;
 }
 .chat-head {
     display: flex;

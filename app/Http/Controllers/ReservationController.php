@@ -261,12 +261,17 @@ class ReservationController extends Controller
             'checkout' => 'required|date|after:checkin',
         ]);
 
-        $occupiedRoomIds = Reservation::whereNotIn('status', ['cancelada', 'no-show'])
+        $excludeId = $request->get('exclude_id');
+
+        $query = Reservation::whereNotIn('status', ['cancelada', 'no-show'])
             ->where('checkin', '<', $request->checkout)
-            ->where('checkout', '>', $request->checkin)
-            ->pluck('room_id')
-            ->unique()
-            ->values();
+            ->where('checkout', '>', $request->checkin);
+
+        if ($excludeId) {
+            $query->where('id', '!=', (int) $excludeId);
+        }
+
+        $occupiedRoomIds = $query->pluck('room_id')->unique()->values();
 
         return response()->json(['occupied_room_ids' => $occupiedRoomIds]);
     }
@@ -369,44 +374,90 @@ class ReservationController extends Controller
     {
         $reservation->load(['guest', 'room']);
 
+        $typeMeta = [
+            'Single' => ['capacity' => '1 pessoa',      'capacityNum' => 1, 'bed' => '1 cama de solteiro'],
+            'Duplo'  => ['capacity' => 'até 2 pessoas', 'capacityNum' => 2, 'bed' => '1 cama de casal · 1 sofá-cama'],
+            'Suíte'  => ['capacity' => 'até 4 pessoas', 'capacityNum' => 4, 'bed' => '1 cama queen · varanda'],
+        ];
+
+        $typeId = ['Single' => 'single', 'Duplo' => 'duplo', 'Suíte' => 'suite'];
+
+        $guests = Guest::withCount('reservations as stays')
+            ->with('reservations:id,guest_id,checkout')
+            ->get()
+            ->map(function ($g) {
+                $lastCheckout = $g->reservations->sortByDesc('checkout')->first()?->checkout;
+                return [
+                    'id'           => $g->id,
+                    'name'         => $g->name,
+                    'email'        => $g->email,
+                    'phone'        => $g->phone ?? '',
+                    'cpf'          => $g->cpf ?? '',
+                    'avatar_color' => $g->avatar_color ?? '',
+                    'tag'          => $g->tag ?? '',
+                    'stays'        => $g->stays,
+                    'last'         => $lastCheckout ? $lastCheckout->format('d/m/Y') : '—',
+                ];
+            });
+
+        $roomTypes = Room::all()
+            ->groupBy('type')
+            ->map(function ($rooms, $type) use ($typeMeta, $typeId) {
+                $meta = $typeMeta[$type] ?? ['capacity' => '', 'capacityNum' => 1, 'bed' => ''];
+                $roomIdMap = $rooms->pluck('id', 'number')->toArray();
+                return [
+                    'id'          => $typeId[$type] ?? strtolower($type),
+                    'name'        => $type,
+                    'capacity'    => $meta['capacity'],
+                    'capacityNum' => $meta['capacityNum'],
+                    'bed'         => $meta['bed'],
+                    'price'       => (float) $rooms->first()->price_per_night,
+                    'total'       => $rooms->count(),
+                    'nums'        => $rooms->pluck('number')->values()->toArray(),
+                    'roomIdMap'   => $roomIdMap,
+                ];
+            })
+            ->values();
+
         return Inertia::render('Reservas/Edit', [
             'reservation' => $this->formatReservation($reservation),
+            'guests'      => $guests->values(),
+            'roomTypes'   => $roomTypes,
         ]);
     }
 
     public function update(Request $request, Reservation $reservation)
     {
         $validated = $request->validate([
-            'guest_id' => 'required|exists:guests,id',
-            'room_id' => 'required|exists:rooms,id',
-            'checkin' => 'required|date',
-            'checkout' => 'required|date|after:checkin',
+            'guest_id'     => 'required|exists:guests,id',
+            'room_id'      => 'required|exists:rooms,id',
+            'checkin'      => 'required|date',
+            'checkout'     => 'required|date|after:checkin',
             'guests_count' => 'required|integer|min:1',
-            'status' => 'required|in:confirmada,pendente,cancelada,realizada,no-show',
-            'channel' => 'required|in:Recepção (Telefone),Website,App,Booking.com,Expedia,Agência de viagens,Walk-in',
-            'paid' => 'boolean',
-            'note' => 'nullable|string',
+            'status'       => 'required|in:confirmada,pendente,cancelada,realizada,no-show',
+            'channel'      => 'required|in:Recepção (Telefone),Website,App,Booking.com,Expedia,Agência de viagens,Walk-in',
+            'paid'         => 'boolean',
+            'note'         => 'nullable|string',
         ]);
 
-        // Recalculate if dates or room changed
-        $checkin = new \DateTime($validated['checkin']);
+        $checkin  = new \DateTime($validated['checkin']);
         $checkout = new \DateTime($validated['checkout']);
-        $nights = $checkout->diff($checkin)->days;
+        $nights   = $checkout->diff($checkin)->days;
 
-        $room = \App\Models\Room::find($validated['room_id']);
+        $room  = Room::find($validated['room_id']);
         $total = $nights * $room->price_per_night;
-        $tax = round($total * 0.05, 2);
+        $tax   = round($total * 0.05, 2);
 
         $reservation->update([
             ...$validated,
             'nights' => $nights,
-            'total' => $total,
-            'tax' => $tax,
-            'paid' => $validated['paid'] ?? false,
+            'total'  => $total,
+            'tax'    => $tax,
+            'paid'   => $validated['paid'] ?? false,
         ]);
 
-        return redirect()->route('reservas')
-                        ->with('success', "Reserva #{$reservation->id} atualizada com sucesso");
+        return redirect()->route('reservas.index')
+            ->with('success', "Reserva #{$reservation->id} atualizada com sucesso");
     }
 
     public function destroy(Reservation $reservation)
@@ -414,32 +465,90 @@ class ReservationController extends Controller
         $id = $reservation->id;
         $reservation->delete();
 
-        return redirect()->route('reservas')
-                        ->with('success', "Reserva #{$id} cancelada com sucesso");
+        return redirect()->route('reservas.index')
+            ->with('success', "Reserva #{$id} cancelada com sucesso");
     }
+
+    // ── Quick-action methods ──────────────────────────────────────────────────
+
+    public function confirm(Reservation $reservation)
+    {
+        $reservation->update(['status' => 'confirmada']);
+        return back();
+    }
+
+    public function cancel(Reservation $reservation)
+    {
+        $reservation->update(['status' => 'cancelada']);
+        return back();
+    }
+
+    public function pay(Reservation $reservation)
+    {
+        $reservation->update(['paid' => true]);
+        return back();
+    }
+
+    public function noShow(Reservation $reservation)
+    {
+        $reservation->update(['status' => 'no-show']);
+        return back();
+    }
+
+    public function quickUpdate(Request $request, Reservation $reservation)
+    {
+        $validated = $request->validate([
+            'checkin'  => 'required|date',
+            'checkout' => 'required|date|after:checkin',
+            'status'   => 'required|in:confirmada,pendente',
+        ]);
+
+        $checkin  = new \DateTime($validated['checkin']);
+        $checkout = new \DateTime($validated['checkout']);
+        $nights   = $checkout->diff($checkin)->days;
+
+        $room  = $reservation->room;
+        $total = $nights * ($room?->price_per_night ?? 0);
+        $tax   = round($total * 0.05, 2);
+
+        $reservation->update([
+            'checkin'  => $validated['checkin'],
+            'checkout' => $validated['checkout'],
+            'status'   => $validated['status'],
+            'nights'   => $nights,
+            'total'    => $total,
+            'tax'      => $tax,
+        ]);
+
+        return back();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function formatReservation(Reservation $reservation): array
     {
         return [
-            'id' => $reservation->id,
-            'ref' => $reservation->ref,
-            'guest' => $reservation->guest->name,
-            'email' => $reservation->guest->email,
-            'avatarColor' => $reservation->guest->avatar_color ?? '',
-            'room' => $reservation->room->number,
-            'roomType' => $reservation->room->type,
-            'pricePerNight' => (float) $reservation->room->price_per_night,
-            'checkin' => $reservation->checkin->toDateString(),
-            'checkout' => $reservation->checkout->toDateString(),
-            'nights' => $reservation->nights,
-            'guests' => $reservation->guests_count,
-            'status' => $reservation->status,
-            'channel' => $reservation->channel,
-            'paid' => (bool) $reservation->paid,
-            'total' => (float) $reservation->total,
-            'tax' => (float) $reservation->tax,
-            'note' => $reservation->note ?? '',
-            'created' => $reservation->created_at->toDateString(),
+            'id'           => $reservation->id,
+            'guest_id'     => $reservation->guest_id,
+            'room_id'      => $reservation->room_id,
+            'ref'          => $reservation->ref,
+            'guest'        => $reservation->guest?->name ?? '',
+            'email'        => $reservation->guest?->email ?? '',
+            'avatarColor'  => $reservation->guest?->avatar_color ?? '',
+            'room'         => $reservation->room?->number ?? '',
+            'roomType'     => $reservation->room?->type ?? '',
+            'pricePerNight'=> (float) ($reservation->room?->price_per_night ?? 0),
+            'checkin'      => $reservation->checkin?->toDateString() ?? '',
+            'checkout'     => $reservation->checkout?->toDateString() ?? '',
+            'nights'       => $reservation->nights ?? 0,
+            'guests'       => $reservation->guests_count ?? 0,
+            'status'       => $reservation->status ?? '',
+            'channel'      => $reservation->channel ?? '',
+            'paid'         => (bool) $reservation->paid,
+            'total'        => (float) ($reservation->total ?? 0),
+            'tax'          => (float) ($reservation->tax ?? 0),
+            'note'         => $reservation->note ?? '',
+            'created'      => $reservation->created_at?->toDateString() ?? '',
         ];
     }
 }

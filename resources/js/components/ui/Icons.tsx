@@ -51,13 +51,14 @@ export const Plus:      React.FC<IconProps> = (p) => <Icon {...p}><path d="M12 5
 export const Sparkles:  React.FC<IconProps> = (p) => <Icon {...p}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></Icon>;
 export const Tools:     React.FC<IconProps> = (p) => <Icon {...p}><path d="M14 6l3-3 4 4-3 3M14 6L4 16v4h4L18 10M14 6l4 4"/></Icon>;
 export const Broom:     React.FC<IconProps> = (p) => <Icon {...p}><path d="M16 2l6 6M14 4l6 6-9 9H5v-6l9-9zM7 17l3 3"/></Icon>;
+export const Lock:      React.FC<IconProps> = (p) => <Icon {...p}><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></Icon>;
 
 // Alias conveniente — objeto com todos os ícones (compatível com a API original)
 export const I = {
     Dashboard, Calendar, ArrowsLR, Users, Star, Chart, Settings,
     Hotel, ArrowDownTray, ArrowUpTray, Cash, Refresh, Search, Bell, Help,
     ChevronDown, ChevronLeft, ChevronRight, Menu, PanelLeft, Logout,
-    User, Warning, Clock, Check, Plus, Sparkles, Tools, Broom,
+    User, Warning, Clock, Check, Plus, Sparkles, Tools, Broom, Lock,
 } as const;
 
 export type IconName = keyof typeof I;

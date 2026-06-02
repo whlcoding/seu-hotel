@@ -755,13 +755,15 @@ interface SummaryProps {
     setChannel: (c: string) => void;
     status: 'confirmada' | 'pendente';
     setStatus: (s: 'confirmada' | 'pendente') => void;
+    note: string;
+    setNote: (n: string) => void;
     onCancel: () => void;
     onSubmit: () => void;
     canSubmit: boolean;
     submitting: boolean;
 }
 
-function Summary({ data, channel, setChannel, status, setStatus, onCancel, onSubmit, canSubmit, submitting }: SummaryProps) {
+function Summary({ data, channel, setChannel, status, setStatus, note, setNote, onCancel, onSubmit, canSubmit, submitting }: SummaryProps) {
     const total = data.nights > 0 && data.roomType ? data.nights * data.roomType.price : 0;
     const tax = total > 0 ? Math.round(total * 0.05) : 0;
 
@@ -847,6 +849,19 @@ function Summary({ data, channel, setChannel, status, setStatus, onCancel, onSub
                     </div>
                 </div>
 
+                <div>
+                    <label className="label" htmlFor="create-note">
+                        Observações <span className="opt">opcional</span>
+                    </label>
+                    <textarea
+                        id="create-note"
+                        className="textarea"
+                        placeholder="Observações internas sobre esta reserva…"
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                    />
+                </div>
+
                 <div className="cta-row" style={{ marginTop: 4 }}>
                     <button type="button" className="btn lg" onClick={onCancel}>Cancelar</button>
                     <button type="button" className="btn primary lg"
@@ -917,6 +932,7 @@ export default function Create({ guests: guestProps, roomTypes: roomTypeProps, b
 
     const [channel, setChannel] = useState('Recepção (Telefone)');
     const [status, setStatus] = useState<'confirmada' | 'pendente'>('confirmada');
+    const [note, setNote] = useState('');
 
     const [errors, setErrors] = useState<Errors>({});
     const [submitting, setSubmitting] = useState(false);
@@ -1077,7 +1093,7 @@ export default function Create({ guests: guestProps, roomTypes: roomTypeProps, b
             status,
             channel,
             paid: false,
-            note: '',
+            note,
             room_id: roomId,
         };
 
@@ -1159,6 +1175,8 @@ export default function Create({ guests: guestProps, roomTypes: roomTypeProps, b
                         setChannel={setChannel}
                         status={status}
                         setStatus={setStatus}
+                        note={note}
+                        setNote={setNote}
                         onCancel={() => { window.history.back(); }}
                         onSubmit={handleSubmit}
                         canSubmit={stepReviewDone}

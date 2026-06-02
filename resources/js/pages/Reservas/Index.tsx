@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, router } from '@inertiajs/react';
 import AppLayout from '@/components/layout/AppLayout';
 import { I } from '@/components/ui/Icons';
 import type { ReservationStatus, AvatarColor, BookingChannel, RoomType } from '@/types/hotel';
@@ -207,16 +207,23 @@ interface ActionMenuProps {
 
 function ActionMenu({ row, onAction }: ActionMenuProps) {
     const items: { id: string; label: string; icon: keyof typeof I; show: boolean; danger?: boolean }[] = [
-        { id: 'view',    label: 'Ver detalhes',          icon: 'Search',       show: true },
-        { id: 'edit',    label: 'Editar',                icon: 'Tools',        show: true },
-        { id: 'pay',     label: 'Confirmar pagamento',   icon: 'Check',        show: !row.paid && row.status !== 'cancelada' },
-        { id: 'confirm', label: 'Confirmar reserva',     icon: 'Check',        show: row.status === 'pendente' },
+        { id: 'view',    label: 'Ver detalhes',          icon: 'Search',        show: true },
+        { id: 'quick-edit', label: 'Editar datas/status', icon: 'Tools',         show: row.status === 'pendente' || row.status === 'confirmada' },
+        { id: 'pay',     label: 'Confirmar pagamento',   icon: 'Cash',          show: !row.paid && !(['cancelada', 'no-show'] as ReservationStatus[]).includes(row.status) },
+        { id: 'confirm', label: 'Confirmar reserva',     icon: 'Check',         show: row.status === 'pendente' },
         { id: 'print',   label: 'Imprimir confirmação',  icon: 'ArrowDownTray', show: true },
+        {
+            id: 'no-show',
+            label: 'Marcar como No-show',
+            icon: 'Warning',
+            show: !(['cancelada', 'realizada', 'no-show'] as ReservationStatus[]).includes(row.status),
+            danger: true,
+        },
         {
             id: 'cancel',
             label: 'Cancelar reserva',
             icon: 'Logout',
-            show: !(['cancelada', 'realizada', 'no-show'] as ReservationStatus[]).includes(row.status),
+            show: row.status === 'pendente' || row.status === 'confirmada',
             danger: true,
         },
     ];
@@ -240,6 +247,81 @@ function ActionMenu({ row, onAction }: ActionMenuProps) {
                     </div>
                 );
             })}
+        </div>
+    );
+}
+
+// ─── EditModal ───────────────────────────────────────────────────────────────
+
+function EditModal({ row, onSync, onClose }: { row: ResRow; onSync: any; onClose: () => void }) {
+    const [checkin, setCheckin] = useState(row.checkin || '');
+    const [checkout, setCheckout] = useState(row.checkout || '');
+    const [status, setStatus] = useState<ReservationStatus>(row.status || 'pendente');
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        router.patch(`/reservas/${row.id}/quick-update`, {
+            checkin,
+            checkout,
+            status,
+        }, {
+            onSuccess: () => {
+                onClose();
+            },
+            onFinish: () => setSubmitting(false),
+        });
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-head">
+                    <div>
+                        <div className="modal-title">Editar Reserva #{row.id}</div>
+                        <div className="modal-sub">{row.guest} · {row.room}</div>
+                    </div>
+                    <button className="btn ghost icon sm" onClick={onClose} aria-label="Fechar">
+                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        <div className="form-grid">
+                            <div className="field">
+                                <label className="label">Check-in</label>
+                                <input type="date" className="input" value={checkin} onChange={e => setCheckin(e.target.value)} required />
+                            </div>
+                            <div className="field">
+                                <label className="label">Check-out</label>
+                                <input type="date" className="input" value={checkout} onChange={e => setCheckout(e.target.value)} required />
+                            </div>
+                        </div>
+                        <div className="field" style={{ marginTop: 16 }}>
+                            <label className="label">Status</label>
+                            <div className="radio-row">
+                                <button type="button" className={`radio-btn ${status === 'confirmada' ? 'active' : ''}`} onClick={() => setStatus('confirmada')}>
+                                    <span className="dot" /> Confirmada
+                                </button>
+                                <button type="button" className={`radio-btn ${status === 'pendente' ? 'active' : ''}`} onClick={() => setStatus('pendente')}>
+                                    <span className="dot" /> Pendente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-foot">
+                         <div className="right">
+                            <button type="button" className="btn" onClick={onClose}>Cancelar</button>
+                            <button type="submit" className="btn primary" disabled={submitting}>
+                                {submitting ? 'Salvando...' : 'Salvar Alterações'}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }
@@ -464,15 +546,22 @@ function Drawer({ row, onClose, onAction }: DrawerProps) {
                 </div>
 
                 <div className="drawer-foot">
-                    <button className="btn" onClick={() => onAction('print', row)}>
-                        <I.ArrowDownTray size={14} /> Imprimir
-                    </button>
+                    {(row.status === 'pendente' || row.status === 'confirmada') && (
+                        <button className="btn" onClick={() => onAction('quick-edit', row)}>
+                            <I.Tools size={14} /> Editar
+                        </button>
+                    )}
                     {row.status === 'pendente' && (
                         <button className="btn primary" onClick={() => onAction('confirm', row)}>
                             <I.Check size={14} /> Confirmar
                         </button>
                     )}
-                    {!(['cancelada', 'realizada', 'no-show'] as ReservationStatus[]).includes(row.status) && (
+                    {!row.paid && !(['cancelada', 'no-show'] as ReservationStatus[]).includes(row.status) && (
+                        <button className="btn success" onClick={() => onAction('pay', row)}>
+                            <I.Cash size={14} /> Pago
+                        </button>
+                    )}
+                    {(row.status === 'pendente' || row.status === 'confirmada') && (
                         <button
                             className="btn"
                             style={{ color: 'var(--red)', borderColor: 'var(--red-soft)' }}
@@ -582,6 +671,7 @@ export default function ReservasIndex({ reservations = [], pagination = {} as Pa
     const [page, setPage] = useState(parseInt(urlParams.get('page') || '1'));
     const [menu, setMenu] = useState<number | null>(null);
     const [drawerRow, setDrawerRow] = useState<ResRow | null>(null);
+    const [editRow, setEditRow] = useState<ResRow | null>(null);
     const [toast, setToast] = useState<ToastState | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
@@ -647,21 +737,45 @@ export default function ReservasIndex({ reservations = [], pagination = {} as Pa
             case 'view':
                 setDrawerRow(row);
                 break;
+            case 'quick-edit':
+                setEditRow(row);
+                break;
             case 'edit':
-                showToast(`Editando reserva #${row.id}`);
+                router.visit(`/reservas/${row.id}/edit`);
                 break;
             case 'confirm':
-                showToast(`Reserva #${row.id} confirmada`, 'success');
+                setDrawerRow(null);
+                router.patch(`/reservas/${row.id}/confirm`, {}, {
+                    onSuccess: () => showToast(`Reserva #${row.id} confirmada`, 'success'),
+                    onError: () => showToast('Erro ao confirmar reserva', 'error'),
+                });
                 break;
             case 'pay':
-                showToast(`Pagamento de R$ ${fmtBR(row.total + row.tax)} confirmado`, 'success');
+                setDrawerRow(null);
+                router.patch(`/reservas/${row.id}/pay`, {}, {
+                    onSuccess: () => showToast(`Pagamento da reserva #${row.id} confirmado`, 'success'),
+                    onError: () => showToast('Erro ao confirmar pagamento', 'error'),
+                });
+                break;
+            case 'no-show':
+                if (window.confirm(`Marcar a reserva #${row.id} de ${row.guest} como no-show?`)) {
+                    setDrawerRow(null);
+                    router.patch(`/reservas/${row.id}/no-show`, {}, {
+                        onSuccess: () => showToast(`Reserva #${row.id} marcada como no-show`, 'warn'),
+                        onError: () => showToast('Erro ao atualizar reserva', 'error'),
+                    });
+                }
                 break;
             case 'print':
                 showToast(`Confirmação #${row.id} enviada para impressão`);
                 break;
             case 'cancel':
                 if (window.confirm(`Cancelar a reserva #${row.id} de ${row.guest}?`)) {
-                    showToast(`Reserva #${row.id} cancelada`, 'warn');
+                    setDrawerRow(null);
+                    router.patch(`/reservas/${row.id}/cancel`, {}, {
+                        onSuccess: () => showToast(`Reserva #${row.id} cancelada`, 'warn'),
+                        onError: () => showToast('Erro ao cancelar reserva', 'error'),
+                    });
                 }
                 break;
         }
@@ -1051,6 +1165,24 @@ export default function ReservasIndex({ reservations = [], pagination = {} as Pa
                     row={drawerRow}
                     onClose={() => setDrawerRow(null)}
                     onAction={handleAction}
+                />
+            )}
+
+            {/* Quick Edit Modal */}
+            {editRow && (
+                <EditModal
+                    row={editRow}
+                    onSync={() => {}}
+                    onClose={() => setEditRow(null)}
+                />
+            )}
+
+            {/* Quick Edit Modal */}
+            {editRow && (
+                <EditModal
+                    row={editRow}
+                    onSync={() => {}}
+                    onClose={() => setEditRow(null)}
                 />
             )}
 

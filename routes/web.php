@@ -19,6 +19,11 @@ Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 Route::middleware('auth')->group(function () {
 
     Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
+    Route::patch('/reservas/{reservation}/confirm',    [ReservationController::class, 'confirm'])->name('reservas.confirm');
+    Route::patch('/reservas/{reservation}/cancel',     [ReservationController::class, 'cancel'])->name('reservas.cancel');
+    Route::patch('/reservas/{reservation}/pay',        [ReservationController::class, 'pay'])->name('reservas.pay');
+    Route::patch('/reservas/{reservation}/no-show',    [ReservationController::class, 'noShow'])->name('reservas.no-show');
+    Route::patch('/reservas/{reservation}/quick-update', [ReservationController::class, 'quickUpdate'])->name('reservas.quick-update');
     Route::resource('reservas', ReservationController::class);
 
     Route::get('/checkin', [CheckinController::class, 'index'])->name('checkin');

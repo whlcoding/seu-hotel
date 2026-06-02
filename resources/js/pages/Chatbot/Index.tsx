@@ -43,25 +43,27 @@ const INITIAL_MESSAGES: Message[] = [
 ];
 
 const QUICK_PROMPTS = [
-    { id: 'p1', label: 'Resumo de check-ins de hoje' },
-    { id: 'p2', label: 'Hospedes VIP chegando' },
-    { id: 'p3', label: 'Pendencias de limpeza' },
-    { id: 'p4', label: 'Relatorio do turno da manha' },
+    { id: 'p1', label: 'Quais sao os check-ins de hoje?' },
+    { id: 'p2', label: 'Ha hospedes VIP chegando?' },
+    { id: 'p3', label: 'Quais quartos estao em limpeza?' },
+    { id: 'p4', label: 'Como esta a ocupacao agora?' },
 ];
 
-const CONTEXT_ROWS = [
-    { id: 'c1', label: 'Ocupacao', value: '78% (39/50)' },
-    { id: 'c2', label: 'Check-ins hoje', value: '5 confirmados' },
-    { id: 'c3', label: 'Check-outs', value: '3 previstos' },
-    { id: 'c4', label: 'Pendencias', value: '2 quartos' },
-    { id: 'c5', label: 'Atualizacao', value: 'ha 4 min' },
+const TOPICS: Array<{ id: string; icon: keyof typeof I; label: string; desc: string }> = [
+    { id: 't1', icon: 'Calendar',  label: 'Reservas',  desc: 'Consulte check-ins, check-outs e status de reservas' },
+    { id: 't2', icon: 'User',      label: 'Hospedes',  desc: 'Informacoes sobre hospedes, VIPs e historico' },
+    { id: 't3', icon: 'Broom',     label: 'Limpeza',   desc: 'Status dos quartos e pendencias da equipe' },
+    { id: 't4', icon: 'Users',     label: 'Equipe',    desc: 'Turnos, disponibilidade e escalas do dia' },
+    { id: 't5', icon: 'Chart',     label: 'Relatorios',desc: 'Ocupacao, receita e indicadores gerais' },
 ];
 
 const QUICK_ACTIONS: Array<{ id: string; label: string; icon: keyof typeof I }> = [
-    { id: 'a1', label: 'Priorizar quartos em limpeza', icon: 'Broom' },
-    { id: 'a2', label: 'Listar VIPs chegando hoje', icon: 'Star' },
-    { id: 'a3', label: 'Ver pendencias de manutencao', icon: 'Tools' },
-    { id: 'a4', label: 'Enviar resumo ao gerente', icon: 'ArrowUpTray' },
+    { id: 'a1', label: 'Quais sao os check-ins de hoje?',           icon: 'Calendar' },
+    { id: 'a2', label: 'Ha hospedes VIP chegando agora?',           icon: 'Star' },
+    { id: 'a3', label: 'Quais quartos estao pendentes de limpeza?', icon: 'Broom' },
+    { id: 'a4', label: 'Qual e a ocupacao atual do hotel?',         icon: 'Chart' },
+    { id: 'a5', label: 'Quem esta de turno hoje?',                  icon: 'Users' },
+    { id: 'a6', label: 'Ha reservas aguardando confirmacao?',       icon: 'Warning' },
 ];
 
 export default function ChatbotIndex() {
@@ -330,24 +332,49 @@ export default function ChatbotIndex() {
                     <div className="panel">
                         <div className="panel-head">
                             <div>
-                                <h3 className="panel-title">Contexto rapido</h3>
+                                <h3 className="panel-title">Topicos disponíveis</h3>
                                 <div className="panel-sub">
-                                    Indicadores do dia
+                                    O que voce pode perguntar
                                 </div>
                             </div>
                         </div>
-                        <div className="chat-context">
-                            {CONTEXT_ROWS.map((row) => (
-                                <div key={row.id} className="chat-context-row">
-                                    <span className="k">{row.label}</span>
-                                    <span className="v">{row.value}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="chat-source-row">
-                            <span className="pill blue">Reservas</span>
-                            <span className="pill green">Limpeza</span>
-                            <span className="pill orange">Equipe</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {TOPICS.map((topic) => {
+                                const Icon = I[topic.icon];
+                                return (
+                                    <div
+                                        key={topic.id}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: 10,
+                                            padding: '10px 12px',
+                                            borderRadius: 8,
+                                            border: '1px solid var(--line)',
+                                            background: 'var(--bg)',
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: 30, height: 30,
+                                            borderRadius: 8,
+                                            background: 'var(--blue-soft)',
+                                            color: 'var(--blue-ink)',
+                                            display: 'grid', placeItems: 'center',
+                                            flexShrink: 0,
+                                        }}>
+                                            <Icon size={15} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>
+                                                {topic.label}
+                                            </div>
+                                            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2, lineHeight: 1.4 }}>
+                                                {topic.desc}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -355,9 +382,9 @@ export default function ChatbotIndex() {
                         <div className="panel-head">
                             <div>
                                 <h3 className="panel-title">
-                                    Atalhos do assistente
+                                    Perguntas rapidas
                                 </h3>
-                                <div className="panel-sub">Acoes rapidas</div>
+                                <div className="panel-sub">Clique para preencher a mensagem</div>
                             </div>
                         </div>
                         <div className="chat-quick">
@@ -377,10 +404,6 @@ export default function ChatbotIndex() {
                                     </button>
                                 );
                             })}
-                        </div>
-                        <div className="chat-quick-note">
-                            Escolha uma acao para preencher a mensagem
-                            automaticamente.
                         </div>
                     </div>
                 </div>
