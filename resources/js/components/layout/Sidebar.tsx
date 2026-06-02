@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import Avatar from '@/components/ui/Avatar';
 import {
-    Hotel, Dashboard, Calendar, ArrowsLR,
+    Hotel, Dashboard, Calendar, ArrowUpTray, Sparkles,
     Users, Star, Chart, Settings, PanelLeft,
 } from '@/components/ui/Icons';
 
@@ -10,9 +10,9 @@ import {
 const NAV_OPERACAO = [
     { id: 'dashboard',  label: 'Dashboard',           icon: Dashboard,  route: '/' },
     { id: 'reservas',   label: 'Reservas',            icon: Calendar,   route: '/reservas',  badge: 7 },
-    { id: 'checkout',    label: 'Check-out', icon: ArrowsLR,   route: '/checkout' },
-    { id: 'checkin',    label: 'Check-in',            icon: Hotel,      route: '/checkin' },
-    { id: 'chatbot',    label: 'ChatBot', icon: ArrowsLR,   route: '/chatbot' },
+    { id: 'checkout',    label: 'Check-out',            icon: ArrowUpTray, route: '/checkout' },
+    { id: 'checkin',    label: 'Check-in',             icon: Hotel,       route: '/checkin' },
+    { id: 'chatbot',    label: 'ChatBot',              icon: Sparkles,    route: '/chatbot' },
     { id: 'equipe',     label: 'Equipe',               icon: Users,      route: '/equipe' },
     { id: 'limpeza',    label: 'Limpeza',              icon: Star,       route: '/limpeza' },
 ];
