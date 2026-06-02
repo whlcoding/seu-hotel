@@ -15,8 +15,8 @@ Route::get('/login', [LoginController::class, 'create'])->name('login');
 Route::post('/login', [LoginController::class, 'store']);
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout')->middleware('auth');
 
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 Route::middleware('auth')->group(function () {
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/reservas/available-rooms', [ReservationController::class, 'availableRooms'])->name('reservas.available-rooms');
     Route::resource('reservas', ReservationController::class);
