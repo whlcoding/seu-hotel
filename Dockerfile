@@ -37,4 +37,4 @@ RUN npm run build
 RUN chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8080
-CMD ["sh", "-c", "php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate && php -S 0.0.0.0:$PORT -t public"]
+CMD ["sh", "-c", "php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate && php artisan db:seed && php -S 0.0.0.0:$PORT -t public"]
